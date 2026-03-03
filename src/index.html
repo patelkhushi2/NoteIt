@@ -1,62 +1,35 @@
-//redirects to login page 
+<!-- LOGIN PAGE. EVERYTHING HERE SHOULD BE LOGIN RELATED. -->
 
-<script>
-    window.location.href = "login.html";
-</script>
-
-//
 
 <!DOCTYPE html>
 <html>
-    <head>
-        <meta charset="UTF-8">
-        <title> NOTEIT WEBSITE</title>
-         <link rel="stylesheet" href="index.css">
-    </head>
-
-    <style>
-        .button {
-            position: fixed; 
-            bottom: 20px;    
-            right: 20px;     
-            z-index: 1000;  
-        }
-    </style>
+<head>
+  <meta charset="UTF-8">
+  <title>Login - NoteIt</title>
 </head>
 
-<body>
-    <a href="home.html">Note</a>
+<body class="login-body">
 
-    <!-- FORM -->
-    <form id="noteForm">
-        <input type="text" id="title" placeholder="Note Title" required>
-        <br><br>
+  <div class = "login-container">
+    <h1>Login to NoteIt</h1>
+    <button id="google-login">Sign in with Google</button>
+  </div>
 
-        <textarea id="content" placeholder="Write your note..." required></textarea>
-        <br><br>
-        
-        <div class="button">
-            <button type="submit">Create New Note</button>
-        </div>
-    </form>
+  <script type="module">
+  import { auth, provider } from "./firebase.js";
+  import { signInWithPopup } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
-    <input type="email" id="email" placeholder="Email" />
-    <input type="password" id="password" placeholder="Password" />
+  document.getElementById("google-login").addEventListener("click", async () => {
+      try {
+        const result = await signInWithPopup(auth, provider);
+        console.log("Logged in:", result.user.email);
+        window.location.href = "home.html";
+      } catch (error) {
+        console.error("Login error:", error);
+    }
+});
 
-    <!-- AUTH PROTECTION -->
-    <script type="module">
-        import { auth } from "./firebase.js";
-        import { onAuthStateChanged } from "firebase/auth";
-
-        onAuthStateChanged(auth, (user) => {
-            if (!user) {
-                window.location.href = "login.html";
-            }
-        });
-    </script>
-
-    <!-- MAIN SCRIPT -->
-    <script type="module" src="note.js"></script>
+</script>
 
 </body>
 </html>

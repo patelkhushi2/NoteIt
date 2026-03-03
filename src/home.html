@@ -1,23 +1,55 @@
+<!-- PAGE AFTER LOGIN -->
+
 <!DOCTYPE html>
 <html>
     <head>
         <meta charset="UTF-8">
-        <title> Home Page</title>
-        <link rel="stylesheet" href="index.css">
-    </head>
+        <title> Home- NoteIT </title>
+         <link rel="stylesheet" href="index.css">
+    
 
-    <body>
-  </head>
+    <style>
+        .button {
+            position: fixed; 
+            bottom: 20px;    
+            right: 20px;     
+            z-index: 1000;  
+        }
+    </style>
+</head>
 
 <body>
-    <h1>Home</h1>
-
-     <div class="button">
-        <button onclick="window.location.href='index.html'">Create New Note</button>
+    <div class="header">
+        <a href="home.html">NoteIT</a>
+        <button id="logoutBtn">Logout</button>
     </div>
+    <h2 id="welcomeMessage"></h2>
 
-    <
+    <!-- AUTH PROTECTION -->
+    <script type="module">
+        import { auth } from "./firebase.js";
+    import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
-   
+    const welcomeMessage = document.getElementById("welcomeMessage");
+    const logoutBtn = document.getElementById("logoutBtn");
+
+    onAuthStateChanged(auth, (user) => {
+        console.log("User:", user);
+        if (user) {
+            welcomeMessage.innerText =
+            "Welcome " + (user.displayName || user.email) + " 👋";
+        } else {
+            window.location.href = "index.html";
+        }
+});
+
+logoutBtn.addEventListener("click", async () => {
+    await signOut(auth);
+    window.location.href = "index.html";
+});
+</script>
+    <!-- MAIN SCRIPT -->
+    <script type="module" src="./js/Note.js"></script>
+
 </body>
 </html>
