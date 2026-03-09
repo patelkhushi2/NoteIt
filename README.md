@@ -6,10 +6,10 @@ Project Description: Web-based notetaking app that would be able to use text and
 
 
 Group Members & Roles:
-Shari Li- Frontend Engineer
-Khushi Patel - Backend & Cloud Engineer 
-Sade Adeaca- 
-Muhammad Javed- 
+Shari Li
+Khushi Patel  
+Sade Adeaca
+Muhammad Javed
 
 
 Full-Stack Integration Engineer - 
