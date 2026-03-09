@@ -11,6 +11,3 @@ Khushi Patel
 Sade Adeaca
 Muhammad Javed
 
-
-Full-Stack Integration Engineer - 
-Documentation & Consistency Lead (Full-Stack Contributor) - 
