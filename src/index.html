@@ -5,82 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>NoteIT — Login</title>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: 'DM Sans', sans-serif;
-      background: #0c0c0f;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .bg {
-      position: fixed; inset: 0; z-index: 0;
-      background:
-        radial-gradient(ellipse 70% 60% at 75% 10%, rgba(200,240,74,.15) 0%, transparent 60%),
-        radial-gradient(ellipse 50% 50% at 20% 90%, rgba(124,109,250,.12) 0%, transparent 60%);
-    }
-    .card {
-      position: relative; z-index: 1;
-      background: rgba(255,255,255,.04);
-      border: 1px solid rgba(255,255,255,.1);
-      border-radius: 24px;
-      padding: 52px 44px;
-      width: 420px;
-      max-width: 92vw;
-      animation: rise .6s cubic-bezier(.22,1,.36,1) both;
-    }
-    @keyframes rise {
-      from { opacity:0; transform: translateY(30px); }
-      to   { opacity:1; transform: translateY(0); }
-    }
-    .logo {
-      font-family: 'Syne', sans-serif;
-      font-weight: 800;
-      font-size: 2.6rem;
-      color: #f0f0f0;
-      letter-spacing: -1px;
-      margin-bottom: 6px;
-    }
-    .logo span { color: #c8f04a; }
-    .tagline {
-      color: rgba(255,255,255,.4);
-      font-size: .88rem;
-      margin-bottom: 40px;
-    }
-    .google-btn {
-      width: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      padding: 14px 20px;
-      background: rgba(255,255,255,.06);
-      border: 1px solid rgba(255,255,255,.15);
-      border-radius: 12px;
-      color: #f0f0f0;
-      font-family: 'DM Sans', sans-serif;
-      font-size: .95rem;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all .2s;
-    }
-    .google-btn:hover {
-      background: rgba(200,240,74,.1);
-      border-color: #c8f04a;
-      transform: translateY(-2px);
-    }
-    .status {
-      margin-top: 16px;
-      text-align: center;
-      font-size: .8rem;
-      color: rgba(255,255,255,.35);
-      min-height: 20px;
-      line-height: 1.5;
-    }
-    .status.error { color: #ff6b6b; }
-  </style>
+  <link rel="stylesheet" href="index_style.css"/>
+  
 </head>
 <body>
   <div class="bg"></div>
@@ -100,49 +26,6 @@
     <div class="status" id="statusMsg"></div>
   </div>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged }
-      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyBQag1nQJPGm-LnxSCfIfUI42DNQ8Ev1_w",
-      authDomain: "noteit-8b57d.firebaseapp.com",
-      projectId: "noteit-8b57d",
-      storageBucket: "noteit-8b57d.firebasestorage.app",
-      messagingSenderId: "913521285762",
-      appId: "1:913521285762:web:6f6eb3e2a377f78b2a729b",
-      measurementId: "G-TK4K3XLZZR"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const provider = new GoogleAuthProvider();
-    const btn = document.getElementById("googleLoginBtn");
-    const status = document.getElementById("statusMsg");
-
-    onAuthStateChanged(auth, (user) => {
-      if (user) window.location.href = "home.html";
-    });
-
-    btn.addEventListener("click", async () => {
-      status.className = "status";
-      status.textContent = "Opening Google sign-in...";
-      try {
-        await signInWithPopup(auth, provider);
-        window.location.href = "home.html";
-      } catch (err) {
-        console.error(err);
-        status.className = "status error";
-        if (err.code === "auth/popup-blocked") {
-          status.textContent = "⚠️ Popup blocked! In Safari go to Settings → Websites → Pop-up Windows → set 127.0.0.1 to Allow.";
-        } else if (err.code === "auth/unauthorized-domain") {
-          status.textContent = "⚠️ Go to Firebase Console → Authentication → Settings → Authorized Domains → Add 127.0.0.1";
-        } else {
-          status.textContent = "❌ " + err.message;
-        }
-      }
-    });
-  </script>
+  <script type="module" src="index.js"></script>
 </body>
 </html>
