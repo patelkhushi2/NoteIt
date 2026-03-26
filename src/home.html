@@ -57,6 +57,22 @@
             <button class="btn-cancel" id="cancelBtn">Cancel</button>
             <button class="btn-save" id="saveBtn">Save Note</button>
           </div>
+    <!-- COMPOSER -->
+    <div class="composer" id="composer">
+      <input type="text" id="noteTitle" placeholder="Note title…"/>
+      <textarea id="noteBody" placeholder="Write your note here…"></textarea>
+      <div class="composer-footer">
+        <select id="noteFolder">
+          <option value="school">📚 School</option>
+          <option value="work">💼 Work</option>
+          <option value="personal">🏠 Personal</option>
+          <option value="other">📌 Other</option>
+        </select>
+
+      <input type="text" id="newFolderInput" placeholder="create new folder" style="display:none;">
+        <div class="composer-btns">
+          <button class="btn-cancel" id="cancelBtn">Cancel</button>
+          <button class="btn-save" id="saveBtn">Save Note</button>
         </div>
       </div>
 
@@ -331,5 +347,8 @@
       document.getElementById("themeToggle").textContent = "🌙 Dark Mode";
     }
   </script>
+  <script type="module" src="home.js"></script>
+  <script src="toggle.js"></script>
+  
 </body>
 </html>
