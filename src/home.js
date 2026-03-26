@@ -50,6 +50,7 @@ import { auth, db } from "./firebase.js";
           title: title,
           text: body,
           folder: folder,
+          folderColor: getFolderColor(folder), 
           userId: currentUser.uid,
           createdAt: serverTimestamp()
         });
@@ -139,6 +140,7 @@ import { auth, db } from "./firebase.js";
 
           const card = document.createElement("div");
           card.className = `note-card tag-${data.folder || "other"}`;
+          card.style.setProperty('--folder-color', data.folderColor || '#8FBF9A');
           card.style.animationDelay = (i * 0.05) + "s";
           card.innerHTML = `
             <div class="note-folder">${folderLabel(data.folder)}</div>
@@ -146,7 +148,7 @@ import { auth, db } from "./firebase.js";
             <div class="note-preview">${escHtml(data.text || "")}</div>
             <div class="note-footer">
               <span>${date}</span>
-              <div class="note-actions">
+              <div class="note-action">
                 <button class="btn-edit" data-id="${docSnap.id}">✏️ Edit</button>
                 <button class="btn-delete" data-id="${docSnap.id}">🗑 Delete</button>
               </div>
@@ -199,6 +201,15 @@ import { auth, db } from "./firebase.js";
     function escHtml(str) {
       return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
     }
+
+  function getFolderColor(folder) {
+    return {
+      school: "#8FBF9A",
+      work: "#7FA8FF",
+      personal: "#F28FA9",
+        other: "#9AA3AF"
+    }[folder] || "#8FBF9A";
+  }
 
     let toastTimer;
     function showToast(msg, isErr = false) {
