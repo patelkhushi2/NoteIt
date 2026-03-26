@@ -95,12 +95,12 @@ import { auth, db } from "./firebase.js";
             createdAt: serverTimestamp()
           });
           showToast("Note saved ✓");
-      }
+        }
 
-      document.getElementById("noteTitle").value = "";
-      document.getElementById("noteBody").value = "";
-      document.getElementById("composer").classList.remove("open");
-      loadNotes();
+        document.getElementById("noteTitle").value = "";
+        document.getElementById("noteBody").value = "";
+        document.getElementById("composer").classList.remove("open");
+        loadNotes();
       
       } catch (err) {
         console.error(err);
@@ -173,11 +173,12 @@ import { auth, db } from "./firebase.js";
         grid.querySelectorAll(".btn-edit").forEach(btn => {
           btn.addEventListener("click", async (e) => {
             e.stopPropagation();
+            
             const id = btn.dataset.id;
-
             const note = snapshot.docs.find(d => d.id === id);
-            if (!note) return;
-            const data = note.data(); 
+            if (!note) return
+
+            const data = note.data();
             document.getElementById("noteTitle").value = data.title || "";
             document.getElementById("noteBody").value = data.text || "";
             document.getElementById("noteFolder").value = data.folder || "other";
