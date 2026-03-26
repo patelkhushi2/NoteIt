@@ -1,5 +1,5 @@
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { addDoc, collection, deleteDoc, doc, getDocs, query, serverTimestamp, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { addDoc, collection, deleteDoc, doc, getDocs, query, serverTimestamp, updateDoc, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { auth, db } from "./firebase.js";
     
   document.addEventListener("DOMContentLoaded", () => {;
@@ -35,7 +35,7 @@ import { auth, db } from "./firebase.js";
       document.getElementById("noteBody").value = "";
     });
 
-    // ── SAVE NOTE ──
+    /* ── SAVE NOTE ──
     document.getElementById("saveBtn").addEventListener("click", async () => {
       const title = document.getElementById("noteTitle").value.trim();
       const body = document.getElementById("noteBody").value.trim();
@@ -62,7 +62,51 @@ import { auth, db } from "./firebase.js";
         console.error(err);
         showToast("Error saving note: " + err.message, true);
       }
-    });
+    }); 
+    */
+
+    // SAVE AND EDIT NOTE
+    document.getElementById("saveBtn").addEventListener("click", async () => {
+      const title = document.getElementById("noteTitle").value.trim();
+      const body = document.getElementById("noteBody").value.trim();
+      const folder = document.getElementById("noteFolder").value;
+
+      if (!title) { showToast("Please add a title!", true); return; }
+      if (!body)  { showToast("Note can't be empty!", true); return; }
+      if (!currentUser) return;
+
+      try {
+        // Update existing note
+        if (editingNoteId) {
+          await updateDoc(doc(db, "notes", editingNoteId), {
+            title: title,
+            text: body,
+            folder: folder,
+        });
+        showToast("Note saved ✓");
+        editingNoteId = null;
+        } else {
+          // Create new note
+          await addDoc(collection(db, "notes"), {
+            title: title,
+            text: body,
+            folder: folder,
+            userId: currentUser.uid,
+            createdAt: serverTimestamp()
+          });
+          showToast("Note saved ✓");
+      }
+
+      document.getElementById("noteTitle").value = "";
+      document.getElementById("noteBody").value = "";
+      document.getElementById("composer").classList.remove("open");
+      loadNotes();
+      
+      } catch (err) {
+        console.error(err);
+        showToast("Error: " + err.message, true);
+      }
+    }); 
 
     // ── LOAD NOTES ──
     async function loadNotes() {
@@ -110,11 +154,6 @@ import { auth, db } from "./firebase.js";
           grid.appendChild(card);
         });
 
-        <div class="note-actions">
-          <button class="btn-edit" data-id="${docSnap.id}">✏️ Edit</button>
-          <button class="btn-delete" data-id="${docSnap.id}">🗑 Delete</button>
-        </div>
-
         // Delete handlers
         grid.querySelectorAll(".btn-delete").forEach(btn => {
           btn.addEventListener("click", async (e) => {
@@ -130,6 +169,22 @@ import { auth, db } from "./firebase.js";
           });
         });
 
+        // EDIT HANDLERS
+        grid.querySelectorAll(".btn-edit").forEach(btn => {
+          btn.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            const id = btn.dataset.id;
+
+            const note = snapshot.docs.find(d => d.id === id);
+            if (!note) return;
+            const data = note.data(); 
+            document.getElementById("noteTitle").value = data.title || "";
+            document.getElementById("noteBody").value = data.text || "";
+            document.getElementById("noteFolder").value = data.folder || "other";
+            document.getElementById("composer").classList.add("open");
+            editingNoteId = id;
+          });
+        });
       } catch (err) {
         console.error(err);
         grid.innerHTML = `<div class="loading">Error loading notes: ${err.message}</div>`;
