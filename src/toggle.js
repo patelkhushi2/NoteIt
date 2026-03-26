@@ -1,66 +1,6 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>NoteIT — Home</title>
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="home_style.css"/>
-    
-=
-</head>
-<body>
-
-  <!-- TOPBAR -->
-  <div class="topbar">
-    <div class="logo">Note<span>IT</span></div>
-    <div class="topbar-right">
-      <span class="welcome" id="welcomeMsg">Loading...</span>
-      <button class="btn-logout" id="logoutBtn">Sign Out</button><button id="themeToggle" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.6);padding:7px 14px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.8rem;cursor:pointer;">☀️ Light Mode</button>
-    </div>
-  </div>
-
-  <!-- MAIN -->
-  <div class="main">
-    <div class="section-header">
-      <div class="section-title">My Notes</div>
-      <button class="btn-new" id="newNoteBtn">+ New Note</button>
-    </div>
-
-    <!-- COMPOSER -->
-    <div class="composer" id="composer">
-      <input type="text" id="noteTitle" placeholder="Note title…"/>
-      <textarea id="noteBody" placeholder="Write your note here…"></textarea>
-      <div class="composer-footer">
-        <select id="noteFolder">
-          <option value="school">📚 School</option>
-          <option value="work">💼 Work</option>
-          <option value="personal">🏠 Personal</option>
-          <option value="other">📌 Other</option>
-        </select>
-
-      <input type="text" id="newFolderInput" placeholder="create new folder" style="display:none;">
-        <div class="composer-btns">
-          <button class="btn-cancel" id="cancelBtn">Cancel</button>
-          <button class="btn-save" id="saveBtn">Save Note</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- NOTES -->
-    <div class="notes-grid" id="notesGrid">
-      <div class="loading">Loading your notes...</div>
-    </div>
-  </div>
-
-  <div class="toast" id="toast"></div>
-
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getAuth, onAuthStateChanged, signOut }
-      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-    import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, where, orderBy, serverTimestamp }
-      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { addDoc, collection, deleteDoc, doc, getDocs, getFirestore, orderBy, query, serverTimestamp, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBQag1nQJPGm-LnxSCfIfUI42DNQ8Ev1_w",
@@ -96,12 +36,6 @@
       window.location.href = "index.html";
     });
 
-    // ── FOLDER SELECT LOGIC ──
-    document.getElementById("noteFolder").addEventListener("change", function () {
-      const input = document.getElementById("newFolderInput");
-      input.style.display = this.value === "other" ? "block" : "none";  
-    });
-
     // ── COMPOSER TOGGLE ──
     document.getElementById("newNoteBtn").addEventListener("click", () => {
       document.getElementById("composer").classList.add("open");
@@ -109,8 +43,6 @@
     });
     document.getElementById("cancelBtn").addEventListener("click", () => {
       document.getElementById("composer").classList.remove("open");
-      document.getElementById("newFolderInput").value = "";
-      document.getElementById("newFolderInput").style.display = "none";
       document.getElementById("noteTitle").value = "";
       document.getElementById("noteBody").value = "";
     });
@@ -119,11 +51,8 @@
     document.getElementById("saveBtn").addEventListener("click", async () => {
       const title = document.getElementById("noteTitle").value.trim();
       const body = document.getElementById("noteBody").value.trim();
-      const selectedFolder = document.getElementById("noteFolder").value;
-      const newFolder = document.getElementById("newFolderInput").value.trim();
+      const folder = document.getElementById("noteFolder").value;
 
-      const folder = selectedFolder === "other" && newFolder ? newFolder : selectedFolder;
-      
       if (!title) { showToast("Please add a title!", true); return; }
       if (!body)  { showToast("Note can't be empty!", true); return; }
       if (!currentUser) return;
@@ -133,9 +62,8 @@
           title: title,
           text: body,
           folder: folder,
-          folderColor: getFolderColor(folder),
           userId: currentUser.uid,
-          createdAt: serverTimestamp(),
+          createdAt: serverTimestamp()
         });
         document.getElementById("noteTitle").value = "";
         document.getElementById("noteBody").value = "";
@@ -179,7 +107,6 @@
             : "Just now";
 
           const card = document.createElement("div");
-          card.style.setProperty('--folder-color', data.folderColor || '#8FBF9A');
           card.className = `note-card tag-${data.folder || "other"}`;
           card.style.animationDelay = (i * 0.05) + "s";
           card.innerHTML = `
@@ -188,10 +115,8 @@
             <div class="note-preview">${escHtml(data.text || "")}</div>
             <div class="note-footer">
               <span>${date}</span>
-              <div class="note-action">
-                <button class="btn-edit" data-id="${docSnap.id}">✏️ Edit</button>
-                <button class="btn-delete" data-id="${docSnap.id}">🗑 Delete</button>
-              </div>
+              <button class="btn-edit" data-id="${docSnap.id}">✏️ Edit</button>
+              <button class="btn-delete" data-id="${docSnap.id}">🗑 Delete</button>
             </div>`;
           grid.appendChild(card);
         });
@@ -225,21 +150,6 @@
       return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
     }
 
-    function getFolderColor(folder) {
-      const defaults = {
-        school: "#8FBF9A",
-        work: "#7FA8FF",
-        personal: "#F28FA9",
-        other: "#9AA3AF"
-      };
-
-      if (defaults[folder]) 
-        return defaults[folder];
-
-      const colors = ["#8FBF9A", "#7FA8FF", "#F28FA9", "#F2C94C", "#56CCF2"];
-        return colors[Math.floor(Math.random() * colors.length)];
-    }     
-
     let toastTimer;
     function showToast(msg, isErr = false) {
       const t = document.getElementById("toast");
@@ -258,9 +168,3 @@ if (localStorage.getItem("theme") === "light") {
   document.body.classList.add("light-mode");
   document.getElementById("themeToggle").textContent = "🌙 Dark Mode";
 }
-  </script>
-  <script type="module" src="home.js"></script>
-  <script type="module" src="toggle.js"></script>
-  
-</body>
-</html>
