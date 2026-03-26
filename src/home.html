@@ -38,6 +38,8 @@
           <option value="personal">🏠 Personal</option>
           <option value="other">📌 Other</option>
         </select>
+
+      <input type="text" id="newFolderInput" placeholder="create new folder" style="display:none;">
         <div class="composer-btns">
           <button class="btn-cancel" id="cancelBtn">Cancel</button>
           <button class="btn-save" id="saveBtn">Save Note</button>
@@ -94,6 +96,12 @@
       window.location.href = "index.html";
     });
 
+    // ── FOLDER SELECT LOGIC ──
+    document.getElementById("noteFolder").addEventListener("change", function () {
+      const input = document.getElementById("newFolderInput");
+      input.style.display = this.value === "other" ? "block" : "none";  
+    });
+
     // ── COMPOSER TOGGLE ──
     document.getElementById("newNoteBtn").addEventListener("click", () => {
       document.getElementById("composer").classList.add("open");
@@ -101,6 +109,8 @@
     });
     document.getElementById("cancelBtn").addEventListener("click", () => {
       document.getElementById("composer").classList.remove("open");
+      document.getElementById("newFolderInput").value = "";
+      document.getElementById("newFolderInput").style.display = "none";
       document.getElementById("noteTitle").value = "";
       document.getElementById("noteBody").value = "";
     });
@@ -109,8 +119,11 @@
     document.getElementById("saveBtn").addEventListener("click", async () => {
       const title = document.getElementById("noteTitle").value.trim();
       const body = document.getElementById("noteBody").value.trim();
-      const folder = document.getElementById("noteFolder").value;
+      const selectedFolder = document.getElementById("noteFolder").value;
+      const newFolder = document.getElementById("newFolderInput").value.trim();
 
+      const folder = selectedFolder === "other" && newFolder ? newFolder : selectedFolder;
+      
       if (!title) { showToast("Please add a title!", true); return; }
       if (!body)  { showToast("Note can't be empty!", true); return; }
       if (!currentUser) return;
@@ -120,8 +133,9 @@
           title: title,
           text: body,
           folder: folder,
+          folderColor: getFolderColor(folder),
           userId: currentUser.uid,
-          createdAt: serverTimestamp()
+          createdAt: serverTimestamp(),
         });
         document.getElementById("noteTitle").value = "";
         document.getElementById("noteBody").value = "";
@@ -165,6 +179,7 @@
             : "Just now";
 
           const card = document.createElement("div");
+          card.style.setProperty('--folder-color', data.folderColor || '#8FBF9A');
           card.className = `note-card tag-${data.folder || "other"}`;
           card.style.animationDelay = (i * 0.05) + "s";
           card.innerHTML = `
@@ -173,8 +188,10 @@
             <div class="note-preview">${escHtml(data.text || "")}</div>
             <div class="note-footer">
               <span>${date}</span>
-              <button class="btn-edit" data-id="${docSnap.id}">✏️ Edit</button>
-              <button class="btn-delete" data-id="${docSnap.id}">🗑 Delete</button>
+              <div class="note-action">
+                <button class="btn-edit" data-id="${docSnap.id}">✏️ Edit</button>
+                <button class="btn-delete" data-id="${docSnap.id}">🗑 Delete</button>
+              </div>
             </div>`;
           grid.appendChild(card);
         });
@@ -207,6 +224,21 @@
     function escHtml(str) {
       return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
     }
+
+    function getFolderColor(folder) {
+      const defaults = {
+        school: "#8FBF9A",
+        work: "#7FA8FF",
+        personal: "#F28FA9",
+        other: "#9AA3AF"
+      };
+
+      if (defaults[folder]) 
+        return defaults[folder];
+
+      const colors = ["#8FBF9A", "#7FA8FF", "#F28FA9", "#F2C94C", "#56CCF2"];
+        return colors[Math.floor(Math.random() * colors.length)];
+    }     
 
     let toastTimer;
     function showToast(msg, isErr = false) {
