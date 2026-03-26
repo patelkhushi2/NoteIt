@@ -5,6 +5,7 @@ import { auth, db } from "./firebase.js";
   document.addEventListener("DOMContentLoaded", () => {
     let currentUser = null;
     let editingNoteId = null;
+    let currentFilter = "all";
 
     // ── AUTH GUARD ──
     onAuthStateChanged(auth, (user) => {
@@ -39,6 +40,17 @@ import { auth, db } from "./firebase.js";
       document.getElementById("composer").classList.remove("open");
       document.getElementById("noteTitle").value = "";
       document.getElementById("noteBody").value = "";
+    });
+
+    // FAVORITE FILTER //
+    document.getElementById("allNotesTab").addEventListener("click", () => {
+    currentFilter = "all";
+    loadNotes();
+    });
+
+    document.getElementById("favoritesTab").addEventListener("click", () => {
+      currentFilter = "favorites";
+      loadNotes();
     });
     
     // SAVE AND EDIT NOTE
@@ -76,9 +88,10 @@ import { auth, db } from "./firebase.js";
             title: title,
             text: body,
             folder: folder,
+            folderColor: folderColor,
             userId: currentUser.uid,
             createdAt: serverTimestamp(),
-            folderColor: folderColor,
+            isFavorite: false,
           });
           showToast("Note saved ✓");
         }
@@ -120,7 +133,13 @@ import { auth, db } from "./firebase.js";
         }
 
         grid.innerHTML = "";
-        snapshot.forEach((docSnap, i) => {
+        let docs = snapshot.docs;
+
+        if (currentFilter === "favorites") {
+          docs = docs.filter(d => d.data().isFavorite);
+        }
+
+        docs.forEach((docSnap, i) => {
           const data = docSnap.data();
           const date = data.createdAt?.toDate
             ? data.createdAt.toDate().toLocaleDateString("en-US", { month:"short", day:"numeric" })
@@ -131,6 +150,7 @@ import { auth, db } from "./firebase.js";
           card.style.setProperty('--folder-color', data.folderColor || '#8FBF9A');
           card.style.animationDelay = (i * 0.05) + "s";
           card.innerHTML = `
+            <button class="btn-favorite ${data.isFavorite ? "active" : ""}" data-id="${docSnap.id}">★</button>
             <div class="note-folder">${folderLabel(data.folder)}</div>
             <div class="note-title">${escHtml(data.title || "Untitled")}</div>
             <div class="note-preview">${escHtml(data.text || "")}</div>
@@ -156,6 +176,23 @@ import { auth, db } from "./firebase.js";
             } catch (err) {
               showToast("Error: " + err.message, true);
             }
+          });
+        });
+        grid.querySelectorAll(".btn-favorite").forEach(btn => {
+          btn.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            const id = btn.dataset.id;
+
+            const note = snapshot.docs.find(d => d.id === id);
+          if (!note) return;
+
+          const current = note.data().isFavorite || false;
+
+          await updateDoc(doc(db, "notes", id), {
+            isFavorite: !current
+        });
+
+        loadNotes();
           });
         });
 
