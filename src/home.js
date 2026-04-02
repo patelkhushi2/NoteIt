@@ -275,7 +275,6 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
       toastTimer = setTimeout(() => t.className = "toast", 3000);
     }
   });
-<<<<<<< HEAD
   // ── EXPORT TO PDF ──
 function exportToPDF(title, text) {
   const w = window.open("", "_blank");
@@ -308,5 +307,3 @@ function exportToTXT(title, text) {
   URL.revokeObjectURL(url);
   showToast("Downloaded as .txt ✓");
 }
-=======
->>>>>>> 1e5aff6b17ca82e1dd3e40f0652769d6997e3786
