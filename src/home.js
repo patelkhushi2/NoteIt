@@ -306,4 +306,9 @@ function exportToTXT(title, text) {
   a.download = title.replace(/[^a-z0-9]/gi, "_").toLowerCase() + ".txt";
   a.click();
   URL.revokeObjectURL(url);
+<<<<<<< HEAD
 }
+=======
+  showToast("Downloaded as .txt ✓");
+}
+>>>>>>> dbaf339483f06a4a499f5653eb2ae97f457e9667
