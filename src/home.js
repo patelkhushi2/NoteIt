@@ -275,10 +275,10 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
       toastTimer = setTimeout(() => t.className = "toast", 3000);
     }
   });
-<<<<<<< HEAD
   // ── EXPORT TO PDF ──
 function exportToPDF(title, text) {
   const w = window.open("", "_blank");
+  if (!w) { alert("Please allow popups for this site to export PDF."); return; }
   w.document.write(`<!DOCTYPE html><html><head><title>${title}</title>
   <style>
     body { font-family: Georgia, serif; max-width: 680px; margin: 60px auto; color: #111; line-height: 1.8; }
@@ -306,7 +306,4 @@ function exportToTXT(title, text) {
   a.download = title.replace(/[^a-z0-9]/gi, "_").toLowerCase() + ".txt";
   a.click();
   URL.revokeObjectURL(url);
-  showToast("Downloaded as .txt ✓");
 }
-=======
->>>>>>> 1e5aff6b17ca82e1dd3e40f0652769d6997e3786
