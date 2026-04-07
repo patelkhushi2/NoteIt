@@ -45,15 +45,15 @@
     <div class="composer" id="composer">
 
       <!-- Text format bar -->
-       <div class = "textformatBar">
+       <div class = "textFormatBar">
         <button onclick="format('bold')"><b>B</b></button>
         <button onclick="format('italic')"><i>I</i></button>
         <button onclick="format('underline')"><u>U</u></button>
-        
        </div>
 
       <input type="text" id="noteTitle" placeholder="Note title…"/>
-      <textarea id="noteBody" placeholder="Write your note here…"></textarea>
+      <div id="noteBody" class="note-body" contenteditable="true"></div>
+      
       <div class="composer-footer">
         <select id="noteFolder">
           <option value="school">📚 School</option>

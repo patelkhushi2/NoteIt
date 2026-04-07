@@ -1,5 +1,5 @@
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { addDoc, collection, deleteDoc, doc, getDocs, query, serverTimestamp, orderBy, updateDoc, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { addDoc, collection, deleteDoc, doc, getDocs, query, serverTimestamp, updateDoc, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { auth, db } from "./firebase.js";
     
   document.addEventListener("DOMContentLoaded", () => {
@@ -41,7 +41,7 @@ import { auth, db } from "./firebase.js";
     document.getElementById("cancelBtn").addEventListener("click", () => {
       document.getElementById("composer").classList.remove("open");
       document.getElementById("noteTitle").value = "";
-      document.getElementById("noteBody").value = "";
+      document.getElementById("noteBody").innerHTML = "";
     });
 
     // FAVORITE FILTER //
@@ -60,7 +60,7 @@ import { auth, db } from "./firebase.js";
     // SAVE AND EDIT NOTE
     document.getElementById("saveBtn").addEventListener("click", async () => {
       const title = document.getElementById("noteTitle").value.trim();
-      const body = document.getElementById("noteBody").value.trim();
+      const body = document.getElementById("noteBody").innerHTML.trim();
 
       const selectedFolder = document.getElementById("noteFolder").value;
       const newFolder = document.getElementById("newFolderInput")?.value.trim();
@@ -101,7 +101,7 @@ import { auth, db } from "./firebase.js";
         }
 
         document.getElementById("noteTitle").value = "";
-        document.getElementById("noteBody").value = "";
+        document.getElementById("noteBody").innerHTML = "";
         document.getElementById("composer").classList.remove("open");
 
         document.getElementById("newFolderInput").value = "";
@@ -158,7 +158,7 @@ import { auth, db } from "./firebase.js";
             <button class="btn-favorite ${data.isFavorite ? "active" : ""}" data-id="${docSnap.id}">★</button>
             <div class="note-folder">${folderLabel(data.folder)}</div>
             <div class="note-title">${escHtml(data.title || "Untitled")}</div>
-            <div class="note-preview">${escHtml(data.text || "")}</div>
+            <div class="note-preview">${data.text || ""}</div>
             <div class="note-footer">
               <span>${date}</span>
               <div class="note-action">
@@ -251,7 +251,7 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
 
             const data = note.data();
             document.getElementById("noteTitle").value = data.title || "";
-            document.getElementById("noteBody").value = data.text || "";
+            document.getElementById("noteBody").innerHTML = data.text || "";
             document.getElementById("noteFolder").value = data.folder || "other";
             document.getElementById("composer").classList.add("open");
             editingNoteId = id;
@@ -320,6 +320,10 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
       clearTimeout(toastTimer);
       toastTimer = setTimeout(() => t.className = "toast", 3000);
     }
+
+    window.format = function(command, value = null) {
+      document.execCommand(command, false, value);
+    };
   });
   // ── EXPORT TO PDF ──
   function exportToPDF(title, text) {
