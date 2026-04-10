@@ -146,6 +146,7 @@ import { auth, db } from "./firebase.js";
 
         docs.forEach((docSnap, i) => {
           const data = docSnap.data();
+          allNotes.push({ id: docSnap.id, ...data });
           const date = data.createdAt?.toDate
             ? data.createdAt.toDate().toLocaleDateString("en-US", { month:"short", day:"numeric" })
             : "Just now";
