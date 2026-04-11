@@ -297,15 +297,6 @@ import { auth, db } from "./firebase.js";
     );
 
     const snapshot = await getDocs(q);
-
-        if (searchTerm) {
-          docs = docs.filter((docSnap) => matchesSearch(docSnap.data(), searchTerm));
-        }
-
-        if (!docs.length) {
-          renderEmptyState(grid);
-          return;
-        }
     const notesSnapshot = await getDocs(query(
       collection(db, "notes"),
       where("userId", "==", currentUser.uid)
@@ -418,6 +409,15 @@ import { auth, db } from "./firebase.js";
 
       grid.innerHTML = "";
       let docs = snapshot.docs;
+
+      if (searchTerm) {
+        docs = docs.filter((docSnap) => matchesSearch(docSnap.data(), searchTerm));
+      }
+
+      if (!docs.length) {
+        renderEmptyState(grid);
+        return;
+      }
 
       if (currentFilter === "favorites") {
         docs = docs.filter(d => d.data().isFavorite);
