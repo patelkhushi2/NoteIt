@@ -46,6 +46,7 @@
         <span>Favorites</span>
         <span class="nav-count" id="favoritesCount">0</span>
       </button>
+      <div id="folderList"></div>
     </aside>
 
     <div class="content">
@@ -78,13 +79,26 @@
       <textarea id="noteBody" placeholder="Write your note here…"></textarea>
       <div class="composer-footer">
         <select id="noteFolder">
-          <option value="school">📚 School</option>
-          <option value="work">💼 Work</option>
-          <option value="personal">🏠 Personal</option>
-          <option value="other">📌 Other</option>
+          <option value="school">School</option>
+          <option value="work">Work</option>
+          <option value="personal">Personal</option>
+          <option value="other">+ New Folder</option>
         </select>
 
-      <input type="text" id="newFolderInput" placeholder="create new folder" style="display:none;">
+        <input 
+          type="text" 
+          id="newFolderInput" 
+          placeholder="create new folder" 
+          style="display:none;"
+        />
+
+        <input
+          type="color"
+          id="folderColorPicker"
+          value = "#ff0000"
+          style="display:none;"
+        />
+
         <div class="composer-btns">
           <button class="btn-cancel" id="cancelBtn">Cancel</button>
           <button class="btn-save" id="saveBtn">Save Note</button>

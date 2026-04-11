@@ -504,7 +504,7 @@
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 1px;
-      color: #0f1115;
+      color: var(--folder-color, #8FBF9A);
     }
     .note-title {
       font-family: 'Syne', sans-serif;
@@ -824,6 +824,11 @@
       .sidebar-label {
         margin-bottom: 0;
         white-space: nowrap;
+      }
+      #folderList .nav-tab {
+        text-align: left;
+        padding-left: 10px;
+        font-size: 0.85rem;
       }
       .nav-tab {
         min-width: 180px;
