@@ -6,6 +6,7 @@ import { auth, db } from "./firebase.js";
     let currentUser = null;
     let editingNoteId = null;
     let currentFilter = "all";
+    let searchTerm = "";
     let selectedFolderFilter = null;
 
     updateFilterTabs();
@@ -17,6 +18,7 @@ import { auth, db } from "./firebase.js";
         return;
       }
       currentUser = user;
+      syncUserSettings(user);
 
       document.getElementById("welcomeMsg").textContent =
         "Hey, " + (user.displayName ? user.displayName.split(" ")[0] : user.email) + " 👋";
@@ -26,10 +28,12 @@ import { auth, db } from "./firebase.js";
     });
 
     // ── LOGOUT ──
-    document.getElementById("logoutBtn").addEventListener("click", async () => {
+    async function handleLogout() {
       await signOut(auth);
       window.location.href = "index.html";
-    });
+    }
+
+    document.getElementById("settingsLogoutBtn").addEventListener("click", handleLogout);
 
     // ── FOLDER SELECT LOGIC ──
     document.getElementById("noteFolder").addEventListener("change", function () {
@@ -74,6 +78,112 @@ import { auth, db } from "./firebase.js";
         
       updateFilterTabs();
       loadNotes();
+    });
+
+    document.getElementById("searchInput").addEventListener("input", (event) => {
+      searchTerm = event.target.value.trim().toLowerCase();
+      loadNotes();
+    });
+
+    const supportFab = document.getElementById("supportFab");
+    const supportPanel = document.getElementById("supportPanel");
+    const supportClose = document.getElementById("supportClose");
+    const supportForm = document.getElementById("supportForm");
+    const supportTopic = document.getElementById("supportTopic");
+    const supportMessage = document.getElementById("supportMessage");
+    const supportSubmit = document.getElementById("supportSubmit");
+    const profileMenuBtn = document.getElementById("profileMenuBtn");
+    const profilePanel = document.getElementById("profilePanel");
+
+    function setProfilePanel(isOpen) {
+      profilePanel.classList.toggle("open", isOpen);
+      profilePanel.setAttribute("aria-hidden", String(!isOpen));
+      profileMenuBtn.setAttribute("aria-expanded", String(isOpen));
+    }
+
+    function setSupportPanel(isOpen) {
+      supportPanel.classList.toggle("open", isOpen);
+      supportPanel.setAttribute("aria-hidden", String(!isOpen));
+      supportFab.setAttribute("aria-expanded", String(isOpen));
+    }
+
+    profileMenuBtn.addEventListener("click", () => {
+      setProfilePanel(!profilePanel.classList.contains("open"));
+    });
+
+    supportFab.addEventListener("click", () => {
+      setSupportPanel(!supportPanel.classList.contains("open"));
+    });
+
+    supportClose.addEventListener("click", () => {
+      setSupportPanel(false);
+    });
+
+    document.getElementById("openSupportFromSettings").addEventListener("click", () => {
+      setProfilePanel(false);
+      setSupportPanel(true);
+    });
+
+    document.getElementById("settingsThemeBtn").addEventListener("click", () => {
+      document.getElementById("themeToggle").click();
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && profilePanel.classList.contains("open")) {
+        setProfilePanel(false);
+      }
+      if (event.key === "Escape" && supportPanel.classList.contains("open")) {
+        setSupportPanel(false);
+      }
+    });
+
+    document.addEventListener("click", (event) => {
+      if (!profilePanel.contains(event.target) && !profileMenuBtn.contains(event.target)) {
+        setProfilePanel(false);
+      }
+    });
+
+    supportForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const topic = supportTopic.value.trim();
+      const message = supportMessage.value.trim();
+
+      if (!currentUser) {
+        showToast("You must be signed in to send support messages.", true);
+        return;
+      }
+
+      if (!message) {
+        showToast("Please enter a support message.", true);
+        supportMessage.focus();
+        return;
+      }
+
+      supportSubmit.disabled = true;
+      supportSubmit.textContent = "Sending...";
+
+      try {
+        await addDoc(collection(db, "supportMessages"), {
+          topic,
+          message,
+          userId: currentUser.uid,
+          userEmail: currentUser.email || "",
+          userName: currentUser.displayName || "",
+          createdAt: serverTimestamp(),
+          status: "new",
+        });
+
+        supportForm.reset();
+        setSupportPanel(false);
+        showToast("Support message sent ✓");
+      } catch (err) {
+        console.error(err);
+        showToast("Could not send support message: " + (err.message || "unknown error"), true);
+      } finally {
+        supportSubmit.disabled = false;
+        supportSubmit.textContent = "Send to Support";
+      }
     });
     
     // SAVE AND EDIT NOTE
@@ -188,6 +298,14 @@ import { auth, db } from "./firebase.js";
 
     const snapshot = await getDocs(q);
 
+        if (searchTerm) {
+          docs = docs.filter((docSnap) => matchesSearch(docSnap.data(), searchTerm));
+        }
+
+        if (!docs.length) {
+          renderEmptyState(grid);
+          return;
+        }
     const notesSnapshot = await getDocs(query(
       collection(db, "notes"),
       where("userId", "==", currentUser.uid)
@@ -462,6 +580,16 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
     }
 
     function renderEmptyState(grid) {
+      if (searchTerm) {
+        grid.innerHTML = `
+          <div class="empty">
+            <div class="empty-icon">🔎</div>
+            <div class="empty-title">No notes match "${escHtml(searchTerm)}"</div>
+            <div class="empty-sub">Try a different keyword or clear the search.</div>
+          </div>`;
+        return;
+      }
+
       if (currentFilter === "favorites") {
         grid.innerHTML = `
           <div class="empty">
@@ -497,6 +625,17 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
       return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
     }
 
+    function matchesSearch(data, term) {
+      const haystack = [
+        data.title || "",
+        data.text || "",
+        data.folder || "",
+        folderLabel(data.folder)
+      ].join(" ").toLowerCase();
+
+      return haystack.includes(term);
+    }
+
   function getFolderColor(folder) {
     return {
       school: "#8FBF9A",
@@ -505,6 +644,13 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
       other: "#9AA3AF"
     }[folder] || "#8FBF9A";
   }
+
+    function syncUserSettings(user) {
+      const displayName = user.displayName || "NoteIT User";
+      const email = user.email || "No email available";
+      document.getElementById("settingsName").textContent = displayName;
+      document.getElementById("settingsEmail").textContent = email;
+    }
 
     let toastTimer;
     function showToast(msg, isErr = false) {

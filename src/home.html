@@ -13,9 +13,24 @@
   <div class="topbar">
     <div class="logo">Note<span>IT</span></div>
     <div class="topbar-right">
-      <span class="welcome" id="welcomeMsg">Loading...</span>
-      <button class="btn-logout" id="logoutBtn">Sign Out</button>
-      <button class="btn-theme" id="themeToggle">☀️ Light Mode</button>
+      <div class="profile-menu">
+        <button class="welcome welcome-button" id="profileMenuBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="profilePanel">
+          <span id="welcomeMsg">Loading...</span>
+        </button>
+        <section class="profile-panel" id="profilePanel" aria-hidden="true">
+          <div class="profile-panel-head">
+            <div class="profile-panel-label">Settings</div>
+            <div class="profile-panel-name" id="settingsName">Loading...</div>
+            <div class="profile-panel-email" id="settingsEmail">Loading...</div>
+          </div>
+          <div class="profile-panel-actions">
+            <button class="profile-action" id="settingsThemeBtn" type="button">Toggle Theme</button>
+            <button class="profile-action" id="openSupportFromSettings" type="button">Support</button>
+            <button class="profile-action profile-action-danger" id="settingsLogoutBtn" type="button">Sign Out</button>
+          </div>
+        </section>
+      </div>
+      <button class="btn-theme profile-theme-anchor" id="themeToggle">☀️ Light Mode</button>
     </div>
   </div>
 
@@ -40,6 +55,13 @@
           <div class="section-title" id="sectionTitle">My Notes</div>
         </div>
         <button class="btn-new" id="newNoteBtn">+ New Note</button>
+      </div>
+
+      <div class="search-row">
+        <label class="search-box" for="searchInput">
+          <span class="search-icon">⌕</span>
+          <input type="search" id="searchInput" placeholder="Search notes by title, keywords, or folder"/>
+        </label>
       </div>
 
     <!-- COMPOSER -->
@@ -91,6 +113,38 @@
   </div>
 
   <div class="toast" id="toast"></div>
+
+  <button class="support-fab" id="supportFab" type="button" aria-controls="supportPanel" aria-expanded="false">
+    <span class="support-fab-icon">?</span>
+    <span>Support</span>
+  </button>
+
+  <section class="support-panel" id="supportPanel" aria-hidden="true">
+    <div class="support-panel-header">
+      <div>
+        <div class="support-eyebrow">Need help?</div>
+        <h2>Support</h2>
+      </div>
+      <button class="support-close" id="supportClose" type="button" aria-label="Close support panel">×</button>
+    </div>
+    <p class="support-copy">Send a message and it will be saved to Firebase for your team to review.</p>
+    <form class="support-form" id="supportForm">
+      <label class="support-field">
+        <span>Topic</span>
+        <select id="supportTopic" required>
+          <option value="Bug report">Bug report</option>
+          <option value="Account help">Account help</option>
+          <option value="Feature request">Feature request</option>
+          <option value="Other">Other</option>
+        </select>
+      </label>
+      <label class="support-field">
+        <span>Message</span>
+        <textarea id="supportMessage" rows="5" maxlength="1000" placeholder="Tell us what happened or what you need help with." required></textarea>
+      </label>
+      <button class="support-submit" id="supportSubmit" type="submit">Send to Support</button>
+    </form>
+  </section>
 
   <script type="module" src="home.js"></script>
   <script type="module" src="toggle.js"></script>
