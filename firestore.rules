@@ -9,6 +9,13 @@ service cloud.firestore {
         && resource.data.userId == request.auth.uid;
     }
 
+    match /folders/{folderId} {
+      allow create: if request.auth != null
+        && request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if request.auth != null
+        && resource.data.userId == request.auth.uid;
+    }
+
     match /supportMessages/{messageId} {
       allow create: if request.auth != null
         && request.resource.data.userId == request.auth.uid;

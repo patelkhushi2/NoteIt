@@ -46,6 +46,10 @@
         <span>Favorites</span>
         <span class="nav-count" id="favoritesCount">0</span>
       </button>
+      <button class="nav-tab" data-filter="archived" id="archivedTab">
+        <span>Archived</span>
+        <span class="nav-count" id="archivedCount">0</span>
+      </button>
       <div id="folderList"></div>
     </aside>
 
@@ -62,6 +66,15 @@
           <span class="search-icon">⌕</span>
           <input type="search" id="searchInput" placeholder="Search notes by title, keywords, or folder"/>
         </label>
+        <label class="sort-box" for="sortSelect">
+          <span class="sort-label">Sort</span>
+          <select id="sortSelect" aria-label="Sort notes">
+            <option value="newest">Newest</option>
+            <option value="oldest">Oldest</option>
+            <option value="title-asc">Title A-Z</option>
+            <option value="title-desc">Title Z-A</option>
+          </select>
+        </label>
       </div>
 
     <!-- COMPOSER -->
@@ -69,14 +82,21 @@
 
       <!-- Text format bar -->
        <div class = "textformatBar">
-        <button onclick="format('bold')"><b>B</b></button>
-        <button onclick="format('italic')"><i>I</i></button>
-        <button onclick="format('underline')"><u>U</u></button>
+        <button type="button" data-format="bold"><b>B</b></button>
+        <button type="button" data-format="italic"><i>I</i></button>
+        <button type="button" data-format="underline"><u>U</u></button>
         
        </div>
 
       <input type="text" id="noteTitle" placeholder="Note title…"/>
-      <textarea id="noteBody" placeholder="Write your note here…"></textarea>
+      <div
+        id="noteBody"
+        class="note-editor"
+        contenteditable="true"
+        data-placeholder="Write your note here…"
+        role="textbox"
+        aria-multiline="true"
+      ></div>
       <div class="composer-footer">
         <select id="noteFolder">
           <option value="school">School</option>

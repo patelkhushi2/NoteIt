@@ -1,5 +1,5 @@
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { addDoc, collection, deleteDoc, doc, getDocs, query, serverTimestamp, orderBy, updateDoc, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { addDoc, collection, deleteDoc, doc, getDocs, query, serverTimestamp, updateDoc, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { auth, db } from "./firebase.js";
     
   document.addEventListener("DOMContentLoaded", () => {
@@ -8,6 +8,8 @@ import { auth, db } from "./firebase.js";
     let currentFilter = "all";
     let searchTerm = "";
     let selectedFolderFilter = null;
+    let currentSort = "newest";
+    let savedNoteRange = null;
 
     updateFilterTabs();
 
@@ -46,6 +48,26 @@ import { auth, db } from "./firebase.js";
       color.style.display = show ? "block" : "none";
     });
 
+    const noteBody = document.getElementById("noteBody");
+    noteBody?.addEventListener("mouseup", rememberNoteSelection);
+    noteBody?.addEventListener("keyup", rememberNoteSelection);
+    noteBody?.addEventListener("focus", rememberNoteSelection);
+    noteBody?.addEventListener("input", () => {
+      rememberNoteSelection();
+      updateFormatButtons();
+    });
+    document.addEventListener("selectionchange", () => {
+      rememberNoteSelection();
+      updateFormatButtons();
+    });
+
+    document.querySelectorAll(".textformatBar button").forEach((button) => {
+      button.addEventListener("mousedown", (event) => {
+        event.preventDefault();
+        applyTextFormat(button.dataset.format);
+      });
+    });
+
     // ── COMPOSER TOGGLE ──
     document.getElementById("newNoteBtn").addEventListener("click", () => {
       document.getElementById("composer").classList.add("open");
@@ -54,7 +76,7 @@ import { auth, db } from "./firebase.js";
     document.getElementById("cancelBtn").addEventListener("click", () => {
       document.getElementById("composer").classList.remove("open");
       document.getElementById("noteTitle").value = "";
-      document.getElementById("noteBody").value = "";
+      setNoteBodyContent("");
     });
 
     // FAVORITE FILTER //
@@ -80,8 +102,24 @@ import { auth, db } from "./firebase.js";
       loadNotes();
     });
 
+    document.getElementById("archivedTab").addEventListener("click", () => {
+      currentFilter = "archived";
+      selectedFolderFilter = null;
+
+      document.querySelectorAll("#folderList .nav-tab")
+        .forEach(el => el.classList.remove("active"));
+
+      updateFilterTabs();
+      loadNotes();
+    });
+
     document.getElementById("searchInput").addEventListener("input", (event) => {
       searchTerm = event.target.value.trim().toLowerCase();
+      loadNotes();
+    });
+
+    document.getElementById("sortSelect").addEventListener("change", (event) => {
+      currentSort = event.target.value;
       loadNotes();
     });
 
@@ -189,7 +227,8 @@ import { auth, db } from "./firebase.js";
     // SAVE AND EDIT NOTE
     document.getElementById("saveBtn").addEventListener("click", async () => {
       const title = document.getElementById("noteTitle").value.trim();
-      const body = document.getElementById("noteBody").value.trim();
+      const body = getNoteBodyText();
+      const formattedBody = getNoteBodyHtml();
 
       const selectedFolder = document.getElementById("noteFolder").value;
       const newFolder = document.getElementById("newFolderInput")?.value.trim();
@@ -226,6 +265,7 @@ import { auth, db } from "./firebase.js";
         await updateDoc(doc(db, "notes", editingNoteId), {
           title: title,
           text: body,
+          formattedText: formattedBody,
           folder: folder,
           folderColor: folderColor,
         });
@@ -256,17 +296,19 @@ import { auth, db } from "./firebase.js";
           await addDoc(collection(db, "notes"), {
             title: title,
             text: body,
+            formattedText: formattedBody,
             folder: folder,
             folderColor: folderColor,
             userId: currentUser.uid,
             createdAt: serverTimestamp(),
             isFavorite: false,
+            isArchived: false,
           });
           showToast("Note saved ✓");
         }
 
         document.getElementById("noteTitle").value = "";
-        document.getElementById("noteBody").value = "";
+        setNoteBodyContent("");
         document.getElementById("composer").classList.remove("open");
 
         document.getElementById("newFolderInput").value = "";
@@ -297,15 +339,6 @@ import { auth, db } from "./firebase.js";
     );
 
     const snapshot = await getDocs(q);
-
-        if (searchTerm) {
-          docs = docs.filter((docSnap) => matchesSearch(docSnap.data(), searchTerm));
-        }
-
-        if (!docs.length) {
-          renderEmptyState(grid);
-          return;
-        }
     const notesSnapshot = await getDocs(query(
       collection(db, "notes"),
       where("userId", "==", currentUser.uid)
@@ -314,7 +347,7 @@ import { auth, db } from "./firebase.js";
     const folderCounts = {};
     notesSnapshot.forEach(doc => {
       const data = doc.data();
-      if (!data.folder) return;
+      if (!data.folder || data.isArchived) return;
 
       const folder = data.folder;
 
@@ -366,20 +399,10 @@ import { auth, db } from "./firebase.js";
 
   // DROPDOWN LOADER
 
-  async function loadFolderDropdown() {
+async function loadFolderDropdown() {
   const select = document.getElementById("noteFolder");
   if (!select) return;
 
-  const q = query(
-    collection(db, "folders"),
-    where("userId", "==", currentUser.uid)
-  );
-
-  const snapshot = await getDocs(q);
-
-  
-
-  // reset options
   select.innerHTML = `
     <option value="school">School</option>
     <option value="work">Work</option>
@@ -387,15 +410,26 @@ import { auth, db } from "./firebase.js";
     <option value="other"> + Create New Folder </option>
   `;
 
-  snapshot.forEach(doc => {
-    const f = doc.data();
+  try {
+    const q = query(
+      collection(db, "folders"),
+      where("userId", "==", currentUser.uid)
+    );
 
-    const option = document.createElement("option");
-    option.value = f.name;
-    option.textContent = f.name;
+    const snapshot = await getDocs(q);
 
-    select.appendChild(option);
-  });
+    snapshot.forEach(doc => {
+      const f = doc.data();
+
+      const option = document.createElement("option");
+      option.value = f.name;
+      option.textContent = f.name;
+
+      select.appendChild(option);
+    });
+  } catch (err) {
+    console.error(err);
+  }
 }
   // ── LOAD NOTES ──
   async function loadNotes() {
@@ -419,6 +453,12 @@ import { auth, db } from "./firebase.js";
       grid.innerHTML = "";
       let docs = snapshot.docs;
 
+      if (currentFilter === "archived") {
+        docs = docs.filter(d => d.data().isArchived);
+      } else {
+        docs = docs.filter(d => !d.data().isArchived);
+      }
+
       if (currentFilter === "favorites") {
         docs = docs.filter(d => d.data().isFavorite);
       }
@@ -426,6 +466,12 @@ import { auth, db } from "./firebase.js";
       if (currentFilter === "folder" && selectedFolderFilter) {
         docs = docs.filter(d => d.data().folder === selectedFolderFilter);
       }
+
+      if (searchTerm) {
+        docs = docs.filter(d => matchesSearch(d.data(), searchTerm));
+      }
+
+      sortNotes(docs, currentSort);
 
       if (!docs.length) {
         renderEmptyState(grid);
@@ -453,6 +499,7 @@ import { auth, db } from "./firebase.js";
             <button class="btn-pdf" data-title="${escHtml(data.title)}" data-text="${escHtml(data.text)}">📄 PDF</button>
             <button class="btn-txt" data-title="${escHtml(data.title)}" data-text="${escHtml(data.text)}">📝 TXT</button>
             <button class="btn-copy" data-title="${escHtml(data.title)}" data-text="${escHtml(data.text)}">📋 Copy</button>
+            <button class="btn-archive" data-id="${docSnap.id}">${data.isArchived ? "Restore" : "Archive 🗂"}</button>
             <button class="btn-edit" data-id="${docSnap.id}">✏️ Edit</button>
             <button class="btn-delete" data-id="${docSnap.id}">🗑 Delete</button>
           </div>
@@ -501,6 +548,27 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
       }
     });
   });
+        grid.querySelectorAll(".btn-archive").forEach(btn => {
+          btn.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            const id = btn.dataset.id;
+            const note = snapshot.docs.find(d => d.id === id);
+            if (!note) return;
+
+            const nextValue = !(note.data().isArchived || false);
+
+            try {
+              await updateDoc(doc(db, "notes", id), {
+                isArchived: nextValue
+              });
+              showToast(nextValue ? "Note archived." : "Note restored ✓");
+              loadFolderSidebar();
+              loadNotes();
+            } catch (err) {
+              showToast("Error: " + err.message, true);
+            }
+          });
+        });
         grid.querySelectorAll(".btn-favorite").forEach(btn => {
           btn.addEventListener("click", async (e) => {
             e.stopPropagation();
@@ -543,7 +611,7 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
             const color = document.getElementById("folderColorPicker");
 
             document.getElementById("noteTitle").value = data.title || "";
-            document.getElementById("noteBody").value = data.text || "";
+            setNoteBodyContent(data.formattedText || data.text || "");
 
             const isCustom = !["school","work","personal","other"].includes(data.folder);
 
@@ -600,6 +668,16 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
         return;
       }
 
+      if (currentFilter === "archived") {
+        grid.innerHTML = `
+          <div class="empty">
+            <div class="empty-icon">🗄️</div>
+            <div class="empty-title">No archived notes</div>
+            <div class="empty-sub">Archive a note to move it out of your main list.</div>
+          </div>`;
+        return;
+      }
+
       grid.innerHTML = `
         <div class="empty">
           <div class="empty-icon">📭</div>
@@ -611,14 +689,18 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
     function updateFilterTabs() {
       document.getElementById("allNotesTab")?.classList.toggle("active", currentFilter === "all");
       document.getElementById("favoritesTab")?.classList.toggle("active", currentFilter === "favorites");
+      document.getElementById("archivedTab")?.classList.toggle("active", currentFilter === "archived");
     }
 
     function updateCounts(docs) {
-      const allCount = docs.length;
-      const favoritesCount = docs.filter((docSnap) => docSnap.data().isFavorite).length;
+      const activeDocs = docs.filter((docSnap) => !docSnap.data().isArchived);
+      const allCount = activeDocs.length;
+      const favoritesCount = activeDocs.filter((docSnap) => docSnap.data().isFavorite).length;
+      const archivedCount = docs.filter((docSnap) => docSnap.data().isArchived).length;
 
       document.getElementById("allCount").textContent = String(allCount);
       document.getElementById("favoritesCount").textContent = String(favoritesCount);
+      document.getElementById("archivedCount").textContent = String(archivedCount);
     }
 
     function escHtml(str) {
@@ -634,6 +716,163 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
       ].join(" ").toLowerCase();
 
       return haystack.includes(term);
+    }
+
+    function sortNotes(docs, sortMode) {
+      docs.sort((a, b) => {
+        const aData = a.data();
+        const bData = b.data();
+        const aTitle = (aData.title || "").trim().toLowerCase();
+        const bTitle = (bData.title || "").trim().toLowerCase();
+        const aCreated = aData.createdAt?.toMillis?.() || 0;
+        const bCreated = bData.createdAt?.toMillis?.() || 0;
+
+        switch (sortMode) {
+          case "oldest":
+            return aCreated - bCreated;
+          case "title-asc":
+            return aTitle.localeCompare(bTitle);
+          case "title-desc":
+            return bTitle.localeCompare(aTitle);
+          case "newest":
+          default:
+            return bCreated - aCreated;
+        }
+      });
+    }
+
+    function applyTextFormat(formatType) {
+      const noteBody = document.getElementById("noteBody");
+      if (!noteBody) return;
+      const selection = window.getSelection();
+      if (!selection) return;
+
+      let range = savedNoteRange ? savedNoteRange.cloneRange() : (selection.rangeCount ? selection.getRangeAt(0) : null);
+      const hasSelectionInEditor = range && noteBody.contains(range.commonAncestorContainer);
+
+      if (!hasSelectionInEditor) {
+        range = document.createRange();
+        range.selectNodeContents(noteBody);
+        range.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+
+      noteBody.focus();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      document.execCommand(formatType, false);
+      rememberNoteSelection();
+      updateFormatButtons();
+    }
+
+    function rememberNoteSelection() {
+      const noteBody = document.getElementById("noteBody");
+      const selection = window.getSelection();
+      if (!noteBody || !selection || !selection.rangeCount) return;
+
+      const range = selection.getRangeAt(0);
+      if (!noteBody.contains(range.commonAncestorContainer)) return;
+
+      savedNoteRange = range.cloneRange();
+    }
+
+    function updateFormatButtons() {
+      const noteBody = document.getElementById("noteBody");
+      const hasEditorFocus = document.activeElement === noteBody;
+      const formatButtons = document.querySelectorAll(".textformatBar button");
+
+      formatButtons.forEach((button) => {
+        const formatType = button.dataset.format;
+        const command = formatType === "italic" ? "italic" : formatType;
+        const isActive = hasEditorFocus && document.queryCommandState(command);
+        button.classList.toggle("active", Boolean(isActive));
+      });
+    }
+
+    function getNoteBodyText() {
+      const noteBody = document.getElementById("noteBody");
+      return normalizePlainText(noteBody?.innerText || "");
+    }
+
+    function getNoteBodyHtml() {
+      const noteBody = document.getElementById("noteBody");
+      return sanitizeRichText(noteBody?.innerHTML || "");
+    }
+
+    function setNoteBodyContent(content) {
+      const noteBody = document.getElementById("noteBody");
+      if (!noteBody) return;
+
+      noteBody.innerHTML = looksLikeHtml(content)
+        ? sanitizeRichText(content)
+        : plainTextToHtml(content);
+
+      normalizeEditorMarkup(noteBody);
+      savedNoteRange = null;
+      updateFormatButtons();
+    }
+
+    function normalizeEditorMarkup(editor) {
+      if (!editor) return;
+      editor.innerHTML = sanitizeRichText(editor.innerHTML);
+      if (editor.innerHTML === "<br>") {
+        editor.innerHTML = "";
+      }
+    }
+
+    function sanitizeRichText(html) {
+      const template = document.createElement("template");
+      template.innerHTML = html;
+
+      const sanitizeNode = (node) => {
+        if (node.nodeType === Node.TEXT_NODE) {
+          return document.createTextNode(node.textContent || "");
+        }
+
+        if (node.nodeType !== Node.ELEMENT_NODE) {
+          return document.createDocumentFragment();
+        }
+
+        const allowedTags = new Set(["B", "STRONG", "I", "EM", "U", "BR", "DIV"]);
+        const tagName = node.tagName.toUpperCase();
+        const fragment = document.createDocumentFragment();
+
+        Array.from(node.childNodes).forEach((child) => {
+          fragment.appendChild(sanitizeNode(child));
+        });
+
+        if (!allowedTags.has(tagName)) {
+          return fragment;
+        }
+
+        const cleanNode = document.createElement(tagName.toLowerCase());
+        cleanNode.appendChild(fragment);
+        return cleanNode;
+      };
+
+      const container = document.createElement("div");
+      Array.from(template.content.childNodes).forEach((child) => {
+        container.appendChild(sanitizeNode(child));
+      });
+
+      return container.innerHTML
+        .replace(/<div><br><\/div>/gi, "<br>")
+        .replace(/<\/div><div>/gi, "<br>")
+        .replace(/^<div>/i, "")
+        .replace(/<\/div>$/i, "");
+    }
+
+    function plainTextToHtml(text) {
+      return escHtml(text).replace(/\n/g, "<br>");
+    }
+
+    function normalizePlainText(text) {
+      return text.replace(/\u00a0/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+    }
+
+    function looksLikeHtml(value) {
+      return /<[^>]+>/.test(value);
     }
 
   function getFolderColor(folder) {
