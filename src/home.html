@@ -23,6 +23,16 @@
             <div class="profile-panel-name" id="settingsName">Loading...</div>
             <div class="profile-panel-email" id="settingsEmail">Loading...</div>
           </div>
+          <div class="profile-panel-section">
+            <div class="profile-panel-section-title">Accent Color</div>
+            <div class="accent-presets" id="accentPresets" role="group" aria-label="Choose accent color">
+              <button class="accent-preset active" type="button" data-accent-name="mint" data-accent-color="#8FBF9A" data-accent-rgb="143,191,154" aria-label="Mint accent" style="background:#8FBF9A;"></button>
+              <button class="accent-preset" type="button" data-accent-name="sky" data-accent-color="#7FA8FF" data-accent-rgb="127,168,255" aria-label="Sky blue accent" style="background:#7FA8FF;"></button>
+              <button class="accent-preset" type="button" data-accent-name="coral" data-accent-color="#F28F79" data-accent-rgb="242,143,121" aria-label="Coral accent" style="background:#F28F79;"></button>
+              <button class="accent-preset" type="button" data-accent-name="gold" data-accent-color="#D7B45F" data-accent-rgb="215,180,95" aria-label="Gold accent" style="background:#D7B45F;"></button>
+              <button class="accent-preset" type="button" data-accent-name="berry" data-accent-color="#C780B6" data-accent-rgb="199,128,182" aria-label="Berry accent" style="background:#C780B6;"></button>
+            </div>
+          </div>
           <div class="profile-panel-actions">
             <button class="profile-action" id="settingsThemeBtn" type="button">Toggle Theme</button>
             <button class="profile-action" id="openSupportFromSettings" type="button">Support</button>
@@ -50,6 +60,7 @@
         <span>Archived</span>
         <span class="nav-count" id="archivedCount">0</span>
       </button>
+      <div class="sidebar-label sidebar-label-folders">My Folders</div>
       <div id="folderList"></div>
     </aside>
 
@@ -58,10 +69,13 @@
         <div>
           <div class="section-title" id="sectionTitle">My Notes</div>
         </div>
-        <button class="btn-new" id="newNoteBtn">+ New Note</button>
+        <div class="section-actions">
+          <button class="btn-new" id="newNoteBtn">+ New Note</button>
+          <button class="btn-folder" id="folderSettingsBtn" type="button">+ Add New Folder</button>
+        </div>
       </div>
 
-      <div class="search-row">
+      <div class="search-row" id="searchRow">
         <label class="search-box" for="searchInput">
           <span class="search-icon">⌕</span>
           <input type="search" id="searchInput" placeholder="Search notes by title, keywords, or folder"/>
@@ -98,26 +112,35 @@
         aria-multiline="true"
       ></div>
       <div class="composer-footer">
-        <select id="noteFolder">
-          <option value="school">School</option>
-          <option value="work">Work</option>
-          <option value="personal">Personal</option>
-          <option value="other">+ New Folder</option>
-        </select>
+        <div class="composer-controls">
+          <select id="noteFolder">
+            <option value="school">School</option>
+            <option value="work">Work</option>
+            <option value="personal">Personal</option>
+            <option value="other">+ New Folder</option>
+          </select>
 
-        <input 
-          type="text" 
-          id="newFolderInput" 
-          placeholder="create new folder" 
-          style="display:none;"
-        />
+          <input 
+            type="text" 
+            id="newFolderInput" 
+            placeholder="create new folder" 
+            style="display:none;"
+          />
 
-        <input
-          type="color"
-          id="folderColorPicker"
-          value = "#ff0000"
-          style="display:none;"
-        />
+          <input
+            type="color"
+            id="folderColorPicker"
+            value = "#ff0000"
+            style="display:none;"
+          />
+
+          <input
+            type="color"
+            id="noteAccentPicker"
+            value="#8FBF9A"
+            aria-label="Note accent color"
+          />
+        </div>
 
         <div class="composer-btns">
           <button class="btn-cancel" id="cancelBtn">Cancel</button>
@@ -130,9 +153,37 @@
       <div class="notes-grid" id="notesGrid">
         <div class="loading">Loading your notes...</div>
       </div>
+
   </div>
 
   <div class="toast" id="toast"></div>
+
+  <div class="folder-manager-overlay" id="folderManagerOverlay" hidden>
+    <section class="folder-manager" id="folderManager" aria-hidden="true">
+      <div class="folder-manager-head">
+        <div>
+          <div class="folder-manager-title">Add New Folder</div>
+          <p class="folder-manager-copy">Create a folder here, or rename one you already made.</p>
+        </div>
+        <button class="folder-manager-close" id="folderManagerClose" type="button" aria-label="Close folder manager">×</button>
+      </div>
+      <form class="folder-create-form" id="folderCreateForm">
+        <input type="text" id="folderCreateInput" placeholder="Folder name" maxlength="40" />
+        <input type="color" id="folderCreateColor" value="#8FBF9A" />
+        <button class="folder-create-btn" type="submit">Create Folder</button>
+      </form>
+      <div class="folder-manager-group">
+        <div class="folder-manager-label">Default folders</div>
+        <div class="folder-manager-static" id="defaultFolderList"></div>
+      </div>
+      <div class="folder-manager-group">
+        <div class="folder-manager-label">Custom folders</div>
+        <div class="folder-manager-list" id="folderManagerList">
+          <div class="loading">Loading folders...</div>
+        </div>
+      </div>
+    </section>
+  </div>
 
   <button class="support-fab" id="supportFab" type="button" aria-controls="supportPanel" aria-expanded="false">
     <span class="support-fab-icon">?</span>

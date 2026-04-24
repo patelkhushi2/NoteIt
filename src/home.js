@@ -6,12 +6,20 @@ import { auth, db } from "./firebase.js";
     let currentUser = null;
     let editingNoteId = null;
     let currentFilter = "all";
+    let currentView = "notes";
     let searchTerm = "";
     let selectedFolderFilter = null;
     let currentSort = "newest";
     let savedNoteRange = null;
+    const BUILTIN_FOLDERS = [
+      { key: "school", label: "School" },
+      { key: "work", label: "Work" },
+      { key: "personal", label: "Personal" }
+    ];
 
     updateFilterTabs();
+    updateSectionTitle();
+    syncPrimaryActions();
 
     // ── AUTH GUARD ──
     onAuthStateChanged(auth, async (user) => {
@@ -26,6 +34,7 @@ import { auth, db } from "./firebase.js";
         "Hey, " + (user.displayName ? user.displayName.split(" ")[0] : user.email) + " 👋";
       loadFolderSidebar();
       loadFolderDropdown();
+      loadFolderManager();
       loadNotes();
     });
 
@@ -36,6 +45,13 @@ import { auth, db } from "./firebase.js";
     }
 
     document.getElementById("settingsLogoutBtn").addEventListener("click", handleLogout);
+    document.getElementById("folderSettingsBtn").addEventListener("click", () => setActiveView("folders"));
+    document.getElementById("folderManagerClose").addEventListener("click", closeFolderManager);
+    document.getElementById("folderManagerOverlay").addEventListener("click", (event) => {
+      if (event.target.id === "folderManagerOverlay") {
+        closeFolderManager();
+      }
+    });
 
     // ── FOLDER SELECT LOGIC ──
     document.getElementById("noteFolder").addEventListener("change", function () {
@@ -70,13 +86,64 @@ import { auth, db } from "./firebase.js";
 
     // ── COMPOSER TOGGLE ──
     document.getElementById("newNoteBtn").addEventListener("click", () => {
+      setActiveView("notes");
       document.getElementById("composer").classList.add("open");
+      document.getElementById("noteAccentPicker").value = getCurrentAccentColor();
+      syncPrimaryActions();
       document.getElementById("noteTitle").focus();
     });
     document.getElementById("cancelBtn").addEventListener("click", () => {
       document.getElementById("composer").classList.remove("open");
       document.getElementById("noteTitle").value = "";
       setNoteBodyContent("");
+      document.getElementById("noteAccentPicker").value = getCurrentAccentColor();
+      syncPrimaryActions();
+    });
+
+    document.getElementById("folderCreateForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const nameInput = document.getElementById("folderCreateInput");
+      const colorInput = document.getElementById("folderCreateColor");
+      const folderName = nameInput.value.trim();
+      const folderColor = colorInput.value || "#8FBF9A";
+
+      if (!folderName) {
+        showToast("Please enter a folder name.", true);
+        nameInput.focus();
+        return;
+      }
+
+      if (BUILTIN_FOLDERS.some((folder) => folder.key === folderName.toLowerCase())) {
+        showToast("That name is already used by a default folder.", true);
+        nameInput.focus();
+        return;
+      }
+
+      try {
+        const existingFolder = await findExistingCustomFolder(folderName);
+        if (existingFolder) {
+          showToast("A folder with that name already exists.", true);
+          nameInput.focus();
+          return;
+        }
+
+        await addDoc(collection(db, "folders"), {
+          name: folderName,
+          color: folderColor,
+          userId: currentUser.uid,
+        });
+
+        nameInput.value = "";
+        colorInput.value = "#8FBF9A";
+        showToast("Folder created ✓");
+        await loadFolderSidebar();
+        await loadFolderDropdown();
+        await loadFolderManager();
+      } catch (err) {
+        console.error(err);
+        showToast("Could not create folder: " + (err.message || "unknown error"), true);
+      }
     });
 
     // FAVORITE FILTER //
@@ -87,6 +154,7 @@ import { auth, db } from "./firebase.js";
       document.querySelectorAll(".nav-tab")
         .forEach(el => el.classList.remove("active"));        
 
+      setActiveView("notes");
       updateFilterTabs();
       loadNotes();
     });
@@ -98,6 +166,7 @@ import { auth, db } from "./firebase.js";
       document.querySelectorAll("#folderList .nav-tab")
         .forEach(el => el.classList.remove("active"));
         
+      setActiveView("notes");
       updateFilterTabs();
       loadNotes();
     });
@@ -109,6 +178,7 @@ import { auth, db } from "./firebase.js";
       document.querySelectorAll("#folderList .nav-tab")
         .forEach(el => el.classList.remove("active"));
 
+      setActiveView("notes");
       updateFilterTabs();
       loadNotes();
     });
@@ -173,9 +243,18 @@ import { auth, db } from "./firebase.js";
       if (event.key === "Escape" && supportPanel.classList.contains("open")) {
         setSupportPanel(false);
       }
+      if (event.key === "Escape" && currentView === "folders") {
+        closeFolderManager();
+      }
     });
 
     document.addEventListener("click", (event) => {
+      const closeBtn = event.target instanceof Element ? event.target.closest("#folderManagerClose") : null;
+      if (closeBtn) {
+        closeFolderManager(event);
+        return;
+      }
+
       if (!profilePanel.contains(event.target) && !profileMenuBtn.contains(event.target)) {
         setProfilePanel(false);
       }
@@ -233,6 +312,7 @@ import { auth, db } from "./firebase.js";
       const selectedFolder = document.getElementById("noteFolder").value;
       const newFolder = document.getElementById("newFolderInput")?.value.trim();
       const pickedColor = document.getElementById("folderColorPicker")?.value;
+      const noteAccentColor = document.getElementById("noteAccentPicker")?.value || pickedColor || getFolderColor(selectedFolder);
 
       const folder = selectedFolder === "other" && newFolder
         ? newFolder
@@ -256,11 +336,14 @@ import { auth, db } from "./firebase.js";
               return;
             }
 
-          await addDoc(collection(db, "folders"), {
-            name: newFolder,
-            color: pickedColor,
-            userId: currentUser.uid,
-          });
+          const existingFolder = await findExistingCustomFolder(newFolder);
+          if (!existingFolder) {
+            await addDoc(collection(db, "folders"), {
+              name: newFolder,
+              color: pickedColor,
+              userId: currentUser.uid,
+            });
+          }
         }
         await updateDoc(doc(db, "notes", editingNoteId), {
           title: title,
@@ -268,6 +351,7 @@ import { auth, db } from "./firebase.js";
           formattedText: formattedBody,
           folder: folder,
           folderColor: folderColor,
+          noteAccentColor: noteAccentColor,
         });
 
         showToast("Note saved ✓");
@@ -279,12 +363,14 @@ import { auth, db } from "./firebase.js";
               return;
           }
           try {
-            await addDoc(collection(db, "folders"), {
-              name: newFolder,
-              color: pickedColor,
-              userId: currentUser.uid,
-            });
-            console.log("Folder added successfully");
+            const existingFolder = await findExistingCustomFolder(newFolder);
+            if (!existingFolder) {
+              await addDoc(collection(db, "folders"), {
+                name: newFolder,
+                color: pickedColor,
+                userId: currentUser.uid,
+              });
+            }
           } catch (err) {
             console.error("FOLDER ERROR:", err);
             showToast("Folder error: " + err.message, true);
@@ -299,6 +385,7 @@ import { auth, db } from "./firebase.js";
             formattedText: formattedBody,
             folder: folder,
             folderColor: folderColor,
+            noteAccentColor: noteAccentColor,
             userId: currentUser.uid,
             createdAt: serverTimestamp(),
             isFavorite: false,
@@ -315,9 +402,12 @@ import { auth, db } from "./firebase.js";
         document.getElementById("newFolderInput").style.display = "none"; 
 
         document.getElementById("folderColorPicker").style.display = "none";
+        document.getElementById("noteAccentPicker").value = getCurrentAccentColor();
         loadFolderSidebar();
         loadFolderDropdown();
+        loadFolderManager();
         loadNotes();
+        syncPrimaryActions();
       
       } catch (err) {
         console.error(err);
@@ -326,7 +416,7 @@ import { auth, db } from "./firebase.js";
     });
 
   // ── SIDEBAR FOLDER ──
-  async function loadFolderSidebar() {
+async function loadFolderSidebar() {
   const container = document.getElementById("folderList");
   if (!container) return;
 
@@ -355,33 +445,52 @@ import { auth, db } from "./firebase.js";
     });
 
     container.innerHTML = "";
+    const seenFolders = new Set();
+    const folders = BUILTIN_FOLDERS.map((folder) => ({
+      name: folder.key,
+      label: folder.label
+    }));
 
-    if (snapshot.empty) {
-      container.innerHTML = `<div style="opacity:.4;">No folders yet</div>`;
-      return;
-    }
+    BUILTIN_FOLDERS.forEach((folder) => {
+      seenFolders.add(folder.key.toLowerCase());
+    });
 
     snapshot.forEach(doc => {
       const f = doc.data();
+      const normalizedName = String(f.name || "").trim();
+      if (!normalizedName) return;
+      const lookupKey = normalizedName.toLowerCase();
+      if (seenFolders.has(lookupKey)) return;
+
+      seenFolders.add(lookupKey);
+      folders.push({
+        name: normalizedName,
+        label: normalizedName
+      });
+    });
+
+    folders.forEach((folder) => {
       const btn = document.createElement("button");
       btn.className = "nav-tab";
-      const count = folderCounts[f.name] || 0;
+      const count = folderCounts[folder.name] || 0;
 
       btn.innerHTML = `
-        <span>${f.name}</span>
+        <span>${folder.label}</span>
         <span class="nav-count">${count}</span>
       `;
       container.appendChild(btn);
 
       btn.addEventListener("click", () => {
         currentFilter = "folder";
-        selectedFolderFilter = f.name;
+        selectedFolderFilter = folder.name;
 
         document.querySelectorAll(".nav-tab")
           .forEach(el => el.classList.remove("active"));
 
         btn.classList.add("active");
 
+        setActiveView("notes");
+        updateSectionTitle();
         loadNotes();
       });
     });
@@ -403,12 +512,20 @@ async function loadFolderDropdown() {
   const select = document.getElementById("noteFolder");
   if (!select) return;
 
-  select.innerHTML = `
-    <option value="school">School</option>
-    <option value="work">Work</option>
-    <option value="personal">Personal</option>
-    <option value="other"> + Create New Folder </option>
-  `;
+  select.innerHTML = "";
+  const seenFolderNames = new Set(BUILTIN_FOLDERS.map((folder) => folder.key));
+
+  BUILTIN_FOLDERS.forEach((folder) => {
+    const option = document.createElement("option");
+    option.value = folder.key;
+    option.textContent = folder.label;
+    select.appendChild(option);
+  });
+
+  const createOption = document.createElement("option");
+  createOption.value = "other";
+  createOption.textContent = " + Create New Folder ";
+  select.appendChild(createOption);
 
   try {
     const q = query(
@@ -420,15 +537,172 @@ async function loadFolderDropdown() {
 
     snapshot.forEach(doc => {
       const f = doc.data();
+      const normalizedName = String(f.name || "").trim();
+      if (!normalizedName) return;
+      const lookupKey = normalizedName.toLowerCase();
+      if (seenFolderNames.has(lookupKey)) {
+        return;
+      }
+      seenFolderNames.add(lookupKey);
 
       const option = document.createElement("option");
-      option.value = f.name;
-      option.textContent = f.name;
+      option.value = normalizedName;
+      option.textContent = normalizedName;
 
       select.appendChild(option);
     });
   } catch (err) {
     console.error(err);
+  }
+}
+
+async function loadFolderManager() {
+  const defaultFolderList = document.getElementById("defaultFolderList");
+  const folderManagerList = document.getElementById("folderManagerList");
+  if (!defaultFolderList || !folderManagerList) return;
+
+  defaultFolderList.innerHTML = "";
+  BUILTIN_FOLDERS.forEach((folder) => {
+    const item = document.createElement("div");
+    item.className = "folder-static-item";
+    item.innerHTML = `
+      <span>${folder.label}</span>
+      <span class="folder-badge">Fixed</span>
+    `;
+    defaultFolderList.appendChild(item);
+  });
+
+  if (!currentUser) {
+    folderManagerList.innerHTML = `<div class="loading">Loading folders...</div>`;
+    return;
+  }
+
+  folderManagerList.innerHTML = `<div class="loading">Loading folders...</div>`;
+
+  try {
+    const snapshot = await getDocs(query(
+      collection(db, "folders"),
+      where("userId", "==", currentUser.uid)
+    ));
+
+    const folders = snapshot.docs
+      .map((docSnap) => ({
+        id: docSnap.id,
+        ...docSnap.data(),
+      }))
+      .filter((folder) => {
+        const normalizedName = String(folder.name || "").trim();
+        return normalizedName && !BUILTIN_FOLDERS.some((item) => item.key === normalizedName.toLowerCase());
+      })
+      .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+
+    if (!folders.length) {
+      folderManagerList.innerHTML = `
+        <div class="folder-manager-empty">
+          <div class="empty-title">No custom folders yet</div>
+          <div class="empty-sub">Create one from the note editor, then rename it here if needed.</div>
+        </div>
+      `;
+      return;
+    }
+
+    folderManagerList.innerHTML = "";
+
+    folders.forEach((folder) => {
+      const row = document.createElement("form");
+      row.className = "folder-manager-item";
+      row.dataset.id = folder.id;
+      row.dataset.name = folder.name;
+
+      row.innerHTML = `
+        <div class="folder-swatch" style="--folder-color:${escHtml(folder.color || "#8FBF9A")}"></div>
+        <input type="text" class="folder-manager-input" value="${escHtml(folder.name)}" aria-label="Folder name for ${escHtml(folder.name)}" />
+        <button type="submit" class="folder-manager-save">Save</button>
+      `;
+
+      const input = row.querySelector(".folder-manager-input");
+      row.addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        const nextName = input.value.trim();
+        const previousName = row.dataset.name;
+
+        if (!nextName) {
+          showToast("Folder name can't be empty.", true);
+          input.focus();
+          return;
+        }
+
+        if (nextName.toLowerCase() !== previousName.toLowerCase() && BUILTIN_FOLDERS.some((item) => item.key === nextName.toLowerCase())) {
+          showToast("That name is reserved for a default folder.", true);
+          input.focus();
+          return;
+        }
+
+        if (nextName === previousName) {
+          showToast("Folder name is unchanged.");
+          return;
+        }
+
+        const duplicate = folders.some((item) => item.id !== folder.id && String(item.name || "").trim().toLowerCase() === nextName.toLowerCase());
+        if (duplicate) {
+          showToast("A folder with that name already exists.", true);
+          input.focus();
+          return;
+        }
+
+        const submitButton = row.querySelector(".folder-manager-save");
+        submitButton.disabled = true;
+        submitButton.textContent = "Saving...";
+
+        try {
+          await updateDoc(doc(db, "folders", folder.id), {
+            name: nextName,
+          });
+
+          const notesSnapshot = await getDocs(query(
+            collection(db, "notes"),
+            where("userId", "==", currentUser.uid)
+          ));
+
+          const updates = [];
+          notesSnapshot.forEach((noteDoc) => {
+            const noteData = noteDoc.data();
+            if (noteData.folder === previousName) {
+              updates.push(updateDoc(doc(db, "notes", noteDoc.id), {
+                folder: nextName,
+              }));
+            }
+          });
+
+          await Promise.all(updates);
+
+          if (selectedFolderFilter === previousName) {
+            selectedFolderFilter = nextName;
+          }
+
+          showToast("Folder renamed ✓");
+          await loadFolderSidebar();
+          await loadFolderDropdown();
+          await loadFolderManager();
+          loadNotes();
+          updateSectionTitle();
+        } catch (err) {
+          console.error(err);
+          showToast("Could not rename folder: " + (err.message || "unknown error"), true);
+        } finally {
+          submitButton.disabled = false;
+          submitButton.textContent = "Save";
+        }
+      });
+
+      folderManagerList.appendChild(row);
+    });
+  } catch (err) {
+    console.error(err);
+    folderManagerList.innerHTML = `
+      <div class="loading">Unable to load folders: ${err.message}</div>
+    `;
   }
 }
   // ── LOAD NOTES ──
@@ -487,14 +761,17 @@ async function loadFolderDropdown() {
         const card = document.createElement("div");
         card.className = `note-card tag-${data.folder || "other"}`;
         card.style.setProperty('--folder-color', data.folderColor || '#8FBF9A');
+        card.style.setProperty('--note-accent', data.noteAccentColor || data.folderColor || '#8FBF9A');
         card.style.animationDelay = (i * 0.05) + "s";
         card.innerHTML = `
           <button class="btn-favorite ${data.isFavorite ? "active" : ""}" data-id="${docSnap.id}">★</button>
-          <div class="note-folder">${folderLabel(data.folder)}</div>
+          <div class="note-meta">
+            <div class="note-folder">${folderLabel(data.folder)}</div>
+            <span class="note-date">${date}</span>
+          </div>
           <div class="note-title">${escHtml(data.title || "Untitled")}</div>
           <div class="note-preview">${escHtml(data.text || "")}</div>
           <div class="note-footer">
-          <span>${date}</span>
           <div class="note-action">
             <button class="btn-pdf" data-title="${escHtml(data.title)}" data-text="${escHtml(data.text)}">📄 PDF</button>
             <button class="btn-txt" data-title="${escHtml(data.title)}" data-text="${escHtml(data.text)}">📝 TXT</button>
@@ -609,6 +886,7 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
 
             const input = document.getElementById("newFolderInput");
             const color = document.getElementById("folderColorPicker");
+            const accent = document.getElementById("noteAccentPicker");
 
             document.getElementById("noteTitle").value = data.title || "";
             setNoteBodyContent(data.formattedText || data.text || "");
@@ -628,7 +906,11 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
               color.style.display = "none";
             }
 
+            accent.value = data.noteAccentColor || data.folderColor || "#8FBF9A";
+
+            setActiveView("notes");
             document.getElementById("composer").classList.add("open");
+            syncPrimaryActions();
             editingNoteId = id;
           });
         });
@@ -690,6 +972,72 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
       document.getElementById("allNotesTab")?.classList.toggle("active", currentFilter === "all");
       document.getElementById("favoritesTab")?.classList.toggle("active", currentFilter === "favorites");
       document.getElementById("archivedTab")?.classList.toggle("active", currentFilter === "archived");
+      updateSectionTitle();
+    }
+
+    function setActiveView(view) {
+      currentView = view;
+
+      const isFolderView = view === "folders";
+      const overlay = document.getElementById("folderManagerOverlay");
+      const manager = document.getElementById("folderManager");
+
+      document.getElementById("folderSettingsBtn")?.classList.toggle("active", isFolderView);
+      overlay?.toggleAttribute("hidden", !isFolderView);
+      manager?.setAttribute("aria-hidden", String(!isFolderView));
+      document.body.style.overflow = isFolderView ? "hidden" : "";
+
+      if (isFolderView) {
+        document.getElementById("composer")?.classList.remove("open");
+      }
+
+      if (isFolderView) {
+        loadFolderManager();
+        document.getElementById("folderCreateInput")?.focus();
+      }
+
+      syncPrimaryActions();
+      updateSectionTitle();
+    }
+
+    function closeFolderManager(event) {
+      event?.preventDefault?.();
+      event?.stopPropagation?.();
+      setActiveView("notes");
+    }
+
+    function syncPrimaryActions() {
+      const composerOpen = document.getElementById("composer")?.classList.contains("open");
+      const folderOpen = currentView === "folders";
+      document.getElementById("newNoteBtn")?.toggleAttribute("hidden", folderOpen);
+      document.getElementById("folderSettingsBtn")?.toggleAttribute("hidden", composerOpen);
+    }
+
+    function updateSectionTitle() {
+      const sectionTitle = document.getElementById("sectionTitle");
+      if (!sectionTitle) return;
+
+      if (currentView === "folders") {
+        sectionTitle.textContent = "Folder Settings";
+        return;
+      }
+
+      if (currentFilter === "folder" && selectedFolderFilter) {
+        sectionTitle.textContent = folderLabel(selectedFolderFilter).trim();
+        return;
+      }
+
+      if (currentFilter === "favorites") {
+        sectionTitle.textContent = "Favorites";
+        return;
+      }
+
+      if (currentFilter === "archived") {
+        sectionTitle.textContent = "Archived";
+        return;
+      }
+
+      sectionTitle.textContent = "All Notes";
     }
 
     function updateCounts(docs) {
@@ -704,7 +1052,12 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
     }
 
     function escHtml(str) {
-      return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+      return String(str)
+        .replace(/&/g,"&amp;")
+        .replace(/</g,"&lt;")
+        .replace(/>/g,"&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
     }
 
     function matchesSearch(data, term) {
@@ -869,6 +1222,27 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
 
     function normalizePlainText(text) {
       return text.replace(/\u00a0/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+    }
+
+    async function findExistingCustomFolder(folderName) {
+      const normalizedTarget = String(folderName || "").trim().toLowerCase();
+      if (!normalizedTarget || !currentUser) return null;
+
+      const snapshot = await getDocs(query(
+        collection(db, "folders"),
+        where("userId", "==", currentUser.uid)
+      ));
+
+      return snapshot.docs.find((docSnap) => {
+        const existingName = String(docSnap.data().name || "").trim().toLowerCase();
+        return existingName === normalizedTarget;
+      }) || null;
+    }
+
+    function getCurrentAccentColor() {
+      return getComputedStyle(document.documentElement)
+        .getPropertyValue("--accent-color")
+        .trim() || "#8FBF9A";
     }
 
     function looksLikeHtml(value) {
