@@ -6,6 +6,7 @@ import { auth, db } from "./firebase.js";
     let currentUser = null;
     let editingNoteId = null;
     let currentFilter = "all";
+    let currentView = "notes";
     let searchTerm = "";
     let selectedFolderFilter = null;
     let quill;
@@ -26,6 +27,8 @@ import { auth, db } from "./firebase.js";
 
 
     updateFilterTabs();
+    updateSectionTitle();
+    syncPrimaryActions();
 
     // ── AUTH GUARD ──
     onAuthStateChanged(auth, async (user) => {
@@ -40,6 +43,7 @@ import { auth, db } from "./firebase.js";
         "Hey, " + (user.displayName ? user.displayName.split(" ")[0] : user.email) + " 👋";
       loadFolderSidebar();
       loadFolderDropdown();
+      loadFolderManager();
       loadNotes();
     });
 
@@ -50,6 +54,13 @@ import { auth, db } from "./firebase.js";
     }
 
     document.getElementById("settingsLogoutBtn").addEventListener("click", handleLogout);
+    document.getElementById("folderSettingsBtn").addEventListener("click", () => setActiveView("folders"));
+    document.getElementById("folderManagerClose").addEventListener("click", closeFolderManager);
+    document.getElementById("folderManagerOverlay").addEventListener("click", (event) => {
+      if (event.target.id === "folderManagerOverlay") {
+        closeFolderManager();
+      }
+    });
 
     // ── FOLDER SELECT LOGIC ──
     document.getElementById("noteFolder").addEventListener("change", function () {
@@ -62,9 +73,32 @@ import { auth, db } from "./firebase.js";
       color.style.display = show ? "block" : "none";
     });
 
+    const noteBody = document.getElementById("noteBody");
+    noteBody?.addEventListener("mouseup", rememberNoteSelection);
+    noteBody?.addEventListener("keyup", rememberNoteSelection);
+    noteBody?.addEventListener("focus", rememberNoteSelection);
+    noteBody?.addEventListener("input", () => {
+      rememberNoteSelection();
+      updateFormatButtons();
+    });
+    document.addEventListener("selectionchange", () => {
+      rememberNoteSelection();
+      updateFormatButtons();
+    });
+
+    document.querySelectorAll(".textformatBar button").forEach((button) => {
+      button.addEventListener("mousedown", (event) => {
+        event.preventDefault();
+        applyTextFormat(button.dataset.format);
+      });
+    });
+
     // ── COMPOSER TOGGLE ──
     document.getElementById("newNoteBtn").addEventListener("click", () => {
+      setActiveView("notes");
       document.getElementById("composer").classList.add("open");
+      document.getElementById("noteAccentPicker").value = getCurrentAccentColor();
+      syncPrimaryActions();
       document.getElementById("noteTitle").focus();
     });
     document.getElementById("cancelBtn").addEventListener("click", () => {
@@ -81,6 +115,7 @@ import { auth, db } from "./firebase.js";
       document.querySelectorAll(".nav-tab")
         .forEach(el => el.classList.remove("active"));        
 
+      setActiveView("notes");
       updateFilterTabs();
       loadNotes();
     });
@@ -92,12 +127,30 @@ import { auth, db } from "./firebase.js";
       document.querySelectorAll("#folderList .nav-tab")
         .forEach(el => el.classList.remove("active"));
         
+      setActiveView("notes");
+      updateFilterTabs();
+      loadNotes();
+    });
+
+    document.getElementById("archivedTab").addEventListener("click", () => {
+      currentFilter = "archived";
+      selectedFolderFilter = null;
+
+      document.querySelectorAll("#folderList .nav-tab")
+        .forEach(el => el.classList.remove("active"));
+
+      setActiveView("notes");
       updateFilterTabs();
       loadNotes();
     });
 
     document.getElementById("searchInput").addEventListener("input", (event) => {
       searchTerm = event.target.value.trim().toLowerCase();
+      loadNotes();
+    });
+
+    document.getElementById("sortSelect").addEventListener("change", (event) => {
+      currentSort = event.target.value;
       loadNotes();
     });
 
@@ -151,9 +204,18 @@ import { auth, db } from "./firebase.js";
       if (event.key === "Escape" && supportPanel.classList.contains("open")) {
         setSupportPanel(false);
       }
+      if (event.key === "Escape" && currentView === "folders") {
+        closeFolderManager();
+      }
     });
 
     document.addEventListener("click", (event) => {
+      const closeBtn = event.target instanceof Element ? event.target.closest("#folderManagerClose") : null;
+      if (closeBtn) {
+        closeFolderManager(event);
+        return;
+      }
+
       if (!profilePanel.contains(event.target) && !profileMenuBtn.contains(event.target)) {
         setProfilePanel(false);
       }
@@ -210,6 +272,7 @@ import { auth, db } from "./firebase.js";
       const selectedFolder = document.getElementById("noteFolder").value;
       const newFolder = document.getElementById("newFolderInput")?.value.trim();
       const pickedColor = document.getElementById("folderColorPicker")?.value;
+      const noteAccentColor = document.getElementById("noteAccentPicker")?.value || pickedColor || getFolderColor(selectedFolder);
 
       const folder = selectedFolder === "other" && newFolder
         ? newFolder
@@ -236,17 +299,22 @@ import { auth, db } from "./firebase.js";
               return;
             }
 
-          await addDoc(collection(db, "folders"), {
-            name: newFolder,
-            color: pickedColor,
-            userId: currentUser.uid,
-          });
+          const existingFolder = await findExistingCustomFolder(newFolder);
+          if (!existingFolder) {
+            await addDoc(collection(db, "folders"), {
+              name: newFolder,
+              color: pickedColor,
+              userId: currentUser.uid,
+            });
+          }
         }
         await updateDoc(doc(db, "notes", editingNoteId), {
           title: title,
           text: body,
+          formattedText: formattedBody,
           folder: folder,
           folderColor: folderColor,
+          noteAccentColor: noteAccentColor,
         });
 
         showToast("Note saved ✓");
@@ -258,12 +326,14 @@ import { auth, db } from "./firebase.js";
               return;
           }
           try {
-            await addDoc(collection(db, "folders"), {
-              name: newFolder,
-              color: pickedColor,
-              userId: currentUser.uid,
-            });
-            console.log("Folder added successfully");
+            const existingFolder = await findExistingCustomFolder(newFolder);
+            if (!existingFolder) {
+              await addDoc(collection(db, "folders"), {
+                name: newFolder,
+                color: pickedColor,
+                userId: currentUser.uid,
+              });
+            }
           } catch (err) {
             console.error("FOLDER ERROR:", err);
             showToast("Folder error: " + err.message, true);
@@ -275,11 +345,14 @@ import { auth, db } from "./firebase.js";
           await addDoc(collection(db, "notes"), {
             title: title,
             text: body,
+            formattedText: formattedBody,
             folder: folder,
             folderColor: folderColor,
+            noteAccentColor: noteAccentColor,
             userId: currentUser.uid,
             createdAt: serverTimestamp(),
             isFavorite: false,
+            isArchived: false,
           });
           showToast("Note saved ✓");
         }
@@ -292,9 +365,12 @@ import { auth, db } from "./firebase.js";
         document.getElementById("newFolderInput").style.display = "none"; 
 
         document.getElementById("folderColorPicker").style.display = "none";
+        document.getElementById("noteAccentPicker").value = getCurrentAccentColor();
         loadFolderSidebar();
         loadFolderDropdown();
+        loadFolderManager();
         loadNotes();
+        syncPrimaryActions();
       
       } catch (err) {
         console.error(err);
@@ -303,9 +379,14 @@ import { auth, db } from "./firebase.js";
     });
 
   // ── SIDEBAR FOLDER ──
-  async function loadFolderSidebar() {
+async function loadFolderSidebar() {
   const container = document.getElementById("folderList");
   if (!container) return;
+
+  if (!currentUser) {
+    container.innerHTML = `<div style="opacity:.5;">Sign in to load folders.</div>`;
+    return;
+  }
 
   container.innerHTML = `<div style="opacity:.5;">Loading folders...</div>`;
 
@@ -325,7 +406,7 @@ import { auth, db } from "./firebase.js";
     const folderCounts = {};
     notesSnapshot.forEach(doc => {
       const data = doc.data();
-      if (!data.folder) return;
+      if (!data.folder || data.isArchived) return;
 
       const folder = data.folder;
 
@@ -333,17 +414,21 @@ import { auth, db } from "./firebase.js";
     });
 
     container.innerHTML = "";
+    const seenFolders = new Set();
+    const folders = BUILTIN_FOLDERS.map((folder) => ({
+      name: folder.key,
+      label: folder.label
+    }));
 
-    if (snapshot.empty) {
-      container.innerHTML = `<div style="opacity:.4;">No folders yet</div>`;
-      return;
-    }
+    BUILTIN_FOLDERS.forEach((folder) => {
+      seenFolders.add(folder.key.toLowerCase());
+    });
 
     snapshot.forEach(docSnap => {
       const f = docSnap.data();
       const btn = document.createElement("button");
       btn.className = "nav-tab";
-      const count = folderCounts[f.name] || 0;
+      const count = folderCounts[folder.name] || 0;
 
       btn.innerHTML = `
         <span class= "folder-name">${f.name}</span>
@@ -354,13 +439,15 @@ import { auth, db } from "./firebase.js";
 
       btn.addEventListener("click", () => {
         currentFilter = "folder";
-        selectedFolderFilter = f.name;
+        selectedFolderFilter = folder.name;
 
         document.querySelectorAll(".nav-tab")
           .forEach(el => el.classList.remove("active"));
 
         btn.classList.add("active");
 
+        setActiveView("notes");
+        updateSectionTitle();
         loadNotes();
       });
 
@@ -383,10 +470,11 @@ import { auth, db } from "./firebase.js";
     });
   } catch (err) {
     console.error(err);
+    const folderError = formatFirestoreError(err, "load folders");
 
     container.innerHTML = `
       <div style="color:#ff6b6b;font-size:.8rem;">
-        Unable to load folders (blocked)
+        ${escHtml(folderError)}
       </div>
     `;
   }
@@ -394,36 +482,208 @@ import { auth, db } from "./firebase.js";
 
   // DROPDOWN LOADER
 
-  async function loadFolderDropdown() {
+async function loadFolderDropdown() {
   const select = document.getElementById("noteFolder");
   if (!select) return;
 
-  const q = query(
-    collection(db, "folders"),
-    where("userId", "==", currentUser.uid)
-  );
+  select.innerHTML = "";
+  const seenFolderNames = new Set(BUILTIN_FOLDERS.map((folder) => folder.key));
 
-  const snapshot = await getDocs(q);
-
-  
-
-  // reset options
-  select.innerHTML = `
-    <option value="school">School</option>
-    <option value="work">Work</option>
-    <option value="personal">Personal</option>
-    <option value="other"> + Create New Folder </option>
-  `;
-
-  snapshot.forEach(doc => {
-    const f = doc.data();
-
+  BUILTIN_FOLDERS.forEach((folder) => {
     const option = document.createElement("option");
-    option.value = f.name;
-    option.textContent = f.name;
-
+    option.value = folder.key;
+    option.textContent = folder.label;
     select.appendChild(option);
   });
+
+  const createOption = document.createElement("option");
+  createOption.value = "other";
+  createOption.textContent = " + Create New Folder ";
+  select.appendChild(createOption);
+
+  if (!currentUser) {
+    return;
+  }
+
+  try {
+    const q = query(
+      collection(db, "folders"),
+      where("userId", "==", currentUser.uid)
+    );
+
+    const snapshot = await getDocs(q);
+
+    snapshot.forEach(doc => {
+      const f = doc.data();
+      const normalizedName = String(f.name || "").trim();
+      if (!normalizedName) return;
+      const lookupKey = normalizedName.toLowerCase();
+      if (seenFolderNames.has(lookupKey)) {
+        return;
+      }
+      seenFolderNames.add(lookupKey);
+
+      const option = document.createElement("option");
+      option.value = normalizedName;
+      option.textContent = normalizedName;
+
+      select.appendChild(option);
+    });
+  } catch (err) {
+    console.error(err);
+    showToast(formatFirestoreError(err, "load folder options"), true);
+  }
+}
+
+async function loadFolderManager() {
+  const defaultFolderList = document.getElementById("defaultFolderList");
+  const folderManagerList = document.getElementById("folderManagerList");
+  if (!defaultFolderList || !folderManagerList) return;
+
+  defaultFolderList.innerHTML = "";
+  BUILTIN_FOLDERS.forEach((folder) => {
+    const item = document.createElement("div");
+    item.className = "folder-static-item";
+    item.innerHTML = `
+      <span>${folder.label}</span>
+      <span class="folder-badge">Fixed</span>
+    `;
+    defaultFolderList.appendChild(item);
+  });
+
+  if (!currentUser) {
+    folderManagerList.innerHTML = `<div class="loading">Loading folders...</div>`;
+    return;
+  }
+
+  folderManagerList.innerHTML = `<div class="loading">Loading folders...</div>`;
+
+  try {
+    const snapshot = await getDocs(query(
+      collection(db, "folders"),
+      where("userId", "==", currentUser.uid)
+    ));
+
+    const folders = snapshot.docs
+      .map((docSnap) => ({
+        id: docSnap.id,
+        ...docSnap.data(),
+      }))
+      .filter((folder) => {
+        const normalizedName = String(folder.name || "").trim();
+        return normalizedName && !BUILTIN_FOLDERS.some((item) => item.key === normalizedName.toLowerCase());
+      })
+      .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+
+    if (!folders.length) {
+      folderManagerList.innerHTML = `
+        <div class="folder-manager-empty">
+          <div class="empty-title">No custom folders yet</div>
+          <div class="empty-sub">Create one from the note editor, then rename it here if needed.</div>
+        </div>
+      `;
+      return;
+    }
+
+    folderManagerList.innerHTML = "";
+
+    folders.forEach((folder) => {
+      const row = document.createElement("form");
+      row.className = "folder-manager-item";
+      row.dataset.id = folder.id;
+      row.dataset.name = folder.name;
+
+      row.innerHTML = `
+        <div class="folder-swatch" style="--folder-color:${escHtml(folder.color || "#8FBF9A")}"></div>
+        <input type="text" class="folder-manager-input" value="${escHtml(folder.name)}" aria-label="Folder name for ${escHtml(folder.name)}" />
+        <button type="submit" class="folder-manager-save">Save</button>
+      `;
+
+      const input = row.querySelector(".folder-manager-input");
+      row.addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        const nextName = input.value.trim();
+        const previousName = row.dataset.name;
+
+        if (!nextName) {
+          showToast("Folder name can't be empty.", true);
+          input.focus();
+          return;
+        }
+
+        if (nextName.toLowerCase() !== previousName.toLowerCase() && BUILTIN_FOLDERS.some((item) => item.key === nextName.toLowerCase())) {
+          showToast("That name is reserved for a default folder.", true);
+          input.focus();
+          return;
+        }
+
+        if (nextName === previousName) {
+          showToast("Folder name is unchanged.");
+          return;
+        }
+
+        const duplicate = folders.some((item) => item.id !== folder.id && String(item.name || "").trim().toLowerCase() === nextName.toLowerCase());
+        if (duplicate) {
+          showToast("A folder with that name already exists.", true);
+          input.focus();
+          return;
+        }
+
+        const submitButton = row.querySelector(".folder-manager-save");
+        submitButton.disabled = true;
+        submitButton.textContent = "Saving...";
+
+        try {
+          await updateDoc(doc(db, "folders", folder.id), {
+            name: nextName,
+          });
+
+          const notesSnapshot = await getDocs(query(
+            collection(db, "notes"),
+            where("userId", "==", currentUser.uid)
+          ));
+
+          const updates = [];
+          notesSnapshot.forEach((noteDoc) => {
+            const noteData = noteDoc.data();
+            if (noteData.folder === previousName) {
+              updates.push(updateDoc(doc(db, "notes", noteDoc.id), {
+                folder: nextName,
+              }));
+            }
+          });
+
+          await Promise.all(updates);
+
+          if (selectedFolderFilter === previousName) {
+            selectedFolderFilter = nextName;
+          }
+
+          showToast("Folder renamed ✓");
+          await loadFolderSidebar();
+          await loadFolderDropdown();
+          await loadFolderManager();
+          loadNotes();
+          updateSectionTitle();
+        } catch (err) {
+          console.error(err);
+          showToast("Could not rename folder: " + (err.message || "unknown error"), true);
+        } finally {
+          submitButton.disabled = false;
+          submitButton.textContent = "Save";
+        }
+      });
+
+      folderManagerList.appendChild(row);
+    });
+  } catch (err) {
+    console.error(err);
+    const folderError = formatFirestoreError(err, "load folders");
+    folderManagerList.innerHTML = `
+      <div class="loading">${escHtml(folderError)}</div>
+    `;
+  }
 }
   // ── LOAD NOTES ──
   async function loadNotes() {
@@ -465,6 +725,12 @@ import { auth, db } from "./firebase.js";
         docs = docs.filter(d => d.data().folder === selectedFolderFilter);
       }
 
+      if (searchTerm) {
+        docs = docs.filter(d => matchesSearch(d.data(), searchTerm));
+      }
+
+      sortNotes(docs, currentSort);
+
       if (!docs.length) {
         renderEmptyState(grid);
         return;
@@ -479,18 +745,22 @@ import { auth, db } from "./firebase.js";
         const card = document.createElement("div");
         card.className = `note-card tag-${data.folder || "other"}`;
         card.style.setProperty('--folder-color', data.folderColor || '#8FBF9A');
+        card.style.setProperty('--note-accent', data.noteAccentColor || data.folderColor || '#8FBF9A');
         card.style.animationDelay = (i * 0.05) + "s";
         card.innerHTML = `
           <button class="btn-favorite ${data.isFavorite ? "active" : ""}" data-id="${docSnap.id}">★</button>
-          <div class="note-folder">${folderLabel(data.folder)}</div>
+          <div class="note-meta">
+            <div class="note-folder">${folderLabel(data.folder)}</div>
+            <span class="note-date">${date}</span>
+          </div>
           <div class="note-title">${escHtml(data.title || "Untitled")}</div>
           <div class="note-preview">${data.text || ""}</div>
           <div class="note-footer">
-          <span>${date}</span>
           <div class="note-action">
             <button class="btn-pdf" data-title="${escHtml(data.title)}" data-text="${escHtml(data.text)}">📄 PDF</button>
             <button class="btn-txt" data-title="${escHtml(data.title)}" data-text="${escHtml(data.text)}">📝 TXT</button>
             <button class="btn-copy" data-title="${escHtml(data.title)}" data-text="${escHtml(data.text)}">📋 Copy</button>
+            <button class="btn-archive" data-id="${docSnap.id}">${data.isArchived ? "Restore" : "Archive 🗂"}</button>
             <button class="btn-edit" data-id="${docSnap.id}">✏️ Edit</button>
             <button class="btn-delete" data-id="${docSnap.id}">🗑 Delete</button>
           </div>
@@ -539,6 +809,27 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
       }
     });
   });
+        grid.querySelectorAll(".btn-archive").forEach(btn => {
+          btn.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            const id = btn.dataset.id;
+            const note = snapshot.docs.find(d => d.id === id);
+            if (!note) return;
+
+            const nextValue = !(note.data().isArchived || false);
+
+            try {
+              await updateDoc(doc(db, "notes", id), {
+                isArchived: nextValue
+              });
+              showToast(nextValue ? "Note archived." : "Note restored ✓");
+              loadFolderSidebar();
+              loadNotes();
+            } catch (err) {
+              showToast("Error: " + err.message, true);
+            }
+          });
+        });
         grid.querySelectorAll(".btn-favorite").forEach(btn => {
           btn.addEventListener("click", async (e) => {
             e.stopPropagation();
@@ -579,6 +870,7 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
 
             const input = document.getElementById("newFolderInput");
             const color = document.getElementById("folderColorPicker");
+            const accent = document.getElementById("noteAccentPicker");
 
             document.getElementById("noteTitle").value = data.title || "";
             quill.root.innerHTML = data.text || "";
@@ -598,7 +890,11 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
               color.style.display = "none";
             }
 
+            accent.value = data.noteAccentColor || data.folderColor || "#8FBF9A";
+
+            setActiveView("notes");
             document.getElementById("composer").classList.add("open");
+            syncPrimaryActions();
             editingNoteId = id;
           });
         });
@@ -638,6 +934,16 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
         return;
       }
 
+      if (currentFilter === "archived") {
+        grid.innerHTML = `
+          <div class="empty">
+            <div class="empty-icon">🗄️</div>
+            <div class="empty-title">No archived notes</div>
+            <div class="empty-sub">Archive a note to move it out of your main list.</div>
+          </div>`;
+        return;
+      }
+
       grid.innerHTML = `
         <div class="empty">
           <div class="empty-icon">📭</div>
@@ -649,18 +955,93 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
     function updateFilterTabs() {
       document.getElementById("allNotesTab")?.classList.toggle("active", currentFilter === "all");
       document.getElementById("favoritesTab")?.classList.toggle("active", currentFilter === "favorites");
+      document.getElementById("archivedTab")?.classList.toggle("active", currentFilter === "archived");
+      updateSectionTitle();
+    }
+
+    function setActiveView(view) {
+      currentView = view;
+
+      const isFolderView = view === "folders";
+      const overlay = document.getElementById("folderManagerOverlay");
+      const manager = document.getElementById("folderManager");
+
+      document.getElementById("folderSettingsBtn")?.classList.toggle("active", isFolderView);
+      overlay?.toggleAttribute("hidden", !isFolderView);
+      manager?.setAttribute("aria-hidden", String(!isFolderView));
+      document.body.style.overflow = isFolderView ? "hidden" : "";
+
+      if (isFolderView) {
+        document.getElementById("composer")?.classList.remove("open");
+      }
+
+      if (isFolderView) {
+        loadFolderManager();
+        document.getElementById("folderCreateInput")?.focus();
+      }
+
+      syncPrimaryActions();
+      updateSectionTitle();
+    }
+
+    function closeFolderManager(event) {
+      event?.preventDefault?.();
+      event?.stopPropagation?.();
+      setActiveView("notes");
+    }
+
+    function syncPrimaryActions() {
+      const composerOpen = document.getElementById("composer")?.classList.contains("open");
+      const folderOpen = currentView === "folders";
+      document.getElementById("newNoteBtn")?.toggleAttribute("hidden", folderOpen);
+      document.getElementById("folderSettingsBtn")?.toggleAttribute("hidden", composerOpen);
+    }
+
+    function updateSectionTitle() {
+      const sectionTitle = document.getElementById("sectionTitle");
+      if (!sectionTitle) return;
+
+      if (currentView === "folders") {
+        sectionTitle.textContent = "Folder Settings";
+        return;
+      }
+
+      if (currentFilter === "folder" && selectedFolderFilter) {
+        sectionTitle.textContent = folderLabel(selectedFolderFilter).trim();
+        return;
+      }
+
+      if (currentFilter === "favorites") {
+        sectionTitle.textContent = "Favorites";
+        return;
+      }
+
+      if (currentFilter === "archived") {
+        sectionTitle.textContent = "Archived";
+        return;
+      }
+
+      sectionTitle.textContent = "All Notes";
     }
 
     function updateCounts(docs) {
-      const allCount = docs.length;
-      const favoritesCount = docs.filter((docSnap) => docSnap.data().isFavorite).length;
+      const activeDocs = docs.filter((docSnap) => !docSnap.data().isArchived);
+      const allCount = activeDocs.length;
+      const favoritesCount = activeDocs.filter((docSnap) => docSnap.data().isFavorite).length;
+      const archivedCount = docs.filter((docSnap) => docSnap.data().isArchived).length;
 
       document.getElementById("allCount").textContent = String(allCount);
       document.getElementById("favoritesCount").textContent = String(favoritesCount);
+      document.getElementById("archivedCount").textContent = String(archivedCount);
     }
 
     function escHtml(str) {
-      return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+      return String(str)
+        .replace(/&/g,"&amp;")
+        .replace(/</g,"&lt;")
+        .replace(/>/g,"&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
     }
 
     function matchesSearch(data, term) {
@@ -672,6 +1053,344 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
       ].join(" ").toLowerCase();
 
       return haystack.includes(term);
+    }
+
+    function sortNotes(docs, sortMode) {
+      docs.sort((a, b) => {
+        const aData = a.data();
+        const bData = b.data();
+        const aTitle = (aData.title || "").trim().toLowerCase();
+        const bTitle = (bData.title || "").trim().toLowerCase();
+        const aCreated = aData.createdAt?.toMillis?.() || 0;
+        const bCreated = bData.createdAt?.toMillis?.() || 0;
+
+        switch (sortMode) {
+          case "oldest":
+            return aCreated - bCreated;
+          case "title-asc":
+            return aTitle.localeCompare(bTitle);
+          case "title-desc":
+            return bTitle.localeCompare(aTitle);
+          case "newest":
+          default:
+            return bCreated - aCreated;
+        }
+      });
+    }
+
+    function applyTextFormat(formatType) {
+      const noteBody = document.getElementById("noteBody");
+      if (!noteBody) return;
+      const selection = window.getSelection();
+      if (!selection) return;
+      const formatCommands = ["bold", "italic", "underline"];
+      const activeRange = selection.rangeCount ? selection.getRangeAt(0).cloneRange() : null;
+      const activeSelectionInEditor = activeRange && noteBody.contains(activeRange.commonAncestorContainer);
+
+      let range = activeSelectionInEditor ? activeRange : (savedNoteRange ? savedNoteRange.cloneRange() : null);
+      const hasSelectionInEditor = range && noteBody.contains(range.commonAncestorContainer);
+      const hadExpandedSelection = Boolean(range && !range.collapsed && hasSelectionInEditor);
+
+      if (formatType === "size-up" || formatType === "size-down") {
+        adjustTextSize(range, selection, noteBody, formatType === "size-up" ? 1 : -1, hadExpandedSelection);
+        rememberNoteSelection();
+        updateFormatButtons();
+        return;
+      }
+
+      const previousStates = getFormatStates(formatCommands);
+
+      if (!hasSelectionInEditor) {
+        range = document.createRange();
+        range.selectNodeContents(noteBody);
+        range.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+
+      noteBody.focus();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      document.execCommand(formatType, false);
+
+      if (hadExpandedSelection) {
+        const caretRange = selection.rangeCount ? selection.getRangeAt(0).cloneRange() : range.cloneRange();
+        caretRange.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(caretRange);
+        syncFormatStates(formatCommands, {
+          bold: false,
+          italic: false,
+          underline: false,
+        });
+      } else {
+        syncFormatStates(formatCommands, {
+          ...previousStates,
+          [formatType]: !previousStates[formatType],
+        });
+      }
+
+      rememberNoteSelection();
+      updateFormatButtons();
+    }
+
+    function rememberNoteSelection() {
+      const noteBody = document.getElementById("noteBody");
+      const selection = window.getSelection();
+      if (!noteBody || !selection || !selection.rangeCount) return;
+
+      const range = selection.getRangeAt(0);
+      if (!noteBody.contains(range.commonAncestorContainer)) return;
+
+      savedNoteRange = range.cloneRange();
+    }
+
+    function updateFormatButtons() {
+      const noteBody = document.getElementById("noteBody");
+      const hasEditorFocus = document.activeElement === noteBody;
+      const formatButtons = document.querySelectorAll(".textformatBar button");
+      const sizeIndicator = document.getElementById("textSizeIndicator");
+      const currentSize = getCurrentTextSizeLevel(noteBody);
+
+      formatButtons.forEach((button) => {
+        const formatType = button.dataset.format;
+        const isActive = ["size-up", "size-down"].includes(formatType)
+          ? false
+          : hasEditorFocus && document.queryCommandState(formatType);
+        button.classList.toggle("active", Boolean(isActive));
+      });
+
+      if (sizeIndicator) {
+        sizeIndicator.textContent = String(currentSize);
+      }
+    }
+
+    function getFormatStates(commands) {
+      return commands.reduce((state, command) => {
+        state[command] = document.queryCommandState(command);
+        return state;
+      }, {});
+    }
+
+    function syncFormatStates(commands, desiredStates) {
+      commands.forEach((command) => {
+        const isActive = document.queryCommandState(command);
+        const shouldBeActive = Boolean(desiredStates[command]);
+        if (isActive !== shouldBeActive) {
+          document.execCommand(command, false);
+        }
+      });
+    }
+
+    function adjustTextSize(range, selection, noteBody, delta, hadExpandedSelection) {
+      const existingWrapper = findTextSizeWrapper(range.commonAncestorContainer, noteBody);
+      const currentSize = existingWrapper ? getTextSizeLevel(existingWrapper) : 3;
+      const nextSize = Math.max(1, Math.min(6, currentSize + delta));
+
+      if (!hadExpandedSelection) {
+        applyTypingTextSize(range, selection, existingWrapper, nextSize);
+        return;
+      }
+
+      const wrapper = document.createElement("span");
+      wrapper.className = `rt-size-${nextSize}`;
+
+      const contents = range.extractContents();
+      flattenTextSizeWrappers(contents);
+      wrapper.appendChild(contents);
+      range.insertNode(wrapper);
+
+      const nextRange = document.createRange();
+      nextRange.selectNodeContents(wrapper);
+      selection.removeAllRanges();
+      selection.addRange(nextRange);
+      savedNoteRange = nextRange.cloneRange();
+    }
+
+    function applyTypingTextSize(range, selection, existingWrapper, nextSize) {
+      if (existingWrapper) {
+        existingWrapper.className = `rt-size-${nextSize}`;
+        savedNoteRange = selection.rangeCount ? selection.getRangeAt(0).cloneRange() : range.cloneRange();
+        return;
+      }
+
+      const wrapper = document.createElement("span");
+      wrapper.className = `rt-size-${nextSize}`;
+      const marker = document.createTextNode("\u200b");
+      wrapper.appendChild(marker);
+      range.insertNode(wrapper);
+
+      const nextRange = document.createRange();
+      nextRange.setStart(marker, 1);
+      nextRange.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(nextRange);
+      savedNoteRange = nextRange.cloneRange();
+    }
+
+    function findTextSizeWrapper(node, noteBody) {
+      const element = node?.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement;
+      const wrapper = element?.closest?.("[class*='rt-size-']");
+      return wrapper && noteBody.contains(wrapper) ? wrapper : null;
+    }
+
+    function getTextSizeLevel(wrapper) {
+      const match = Array.from(wrapper.classList).find((className) => /^rt-size-[1-6]$/.test(className));
+      return match ? Number(match.replace("rt-size-", "")) : 3;
+    }
+
+    function getCurrentTextSizeLevel(noteBody) {
+      const selection = window.getSelection();
+      if (!selection || !selection.rangeCount || !noteBody) return 3;
+      const wrapper = findTextSizeWrapper(selection.getRangeAt(0).commonAncestorContainer, noteBody);
+      return wrapper ? getTextSizeLevel(wrapper) : 3;
+    }
+
+    function flattenTextSizeWrappers(fragment) {
+      fragment.querySelectorAll?.("[class*='rt-size-']").forEach((wrapper) => {
+        while (wrapper.firstChild) {
+          wrapper.parentNode.insertBefore(wrapper.firstChild, wrapper);
+        }
+        wrapper.remove();
+      });
+    }
+
+    function getNoteBodyText() {
+      const noteBody = document.getElementById("noteBody");
+      return normalizePlainText(noteBody?.innerText || "");
+    }
+
+    function getNoteBodyHtml() {
+      const noteBody = document.getElementById("noteBody");
+      return sanitizeRichText(noteBody?.innerHTML || "");
+    }
+
+    function setNoteBodyContent(content) {
+      const noteBody = document.getElementById("noteBody");
+      if (!noteBody) return;
+
+      noteBody.innerHTML = looksLikeHtml(content)
+        ? sanitizeRichText(content)
+        : plainTextToHtml(content);
+
+      normalizeEditorMarkup(noteBody);
+      savedNoteRange = null;
+      updateFormatButtons();
+    }
+
+    function normalizeEditorMarkup(editor) {
+      if (!editor) return;
+      editor.innerHTML = sanitizeRichText(editor.innerHTML);
+      if (editor.innerHTML === "<br>") {
+        editor.innerHTML = "";
+      }
+    }
+
+    function sanitizeRichText(html) {
+      const template = document.createElement("template");
+      template.innerHTML = html;
+
+      const sanitizeNode = (node) => {
+        if (node.nodeType === Node.TEXT_NODE) {
+          return document.createTextNode(node.textContent || "");
+        }
+
+        if (node.nodeType !== Node.ELEMENT_NODE) {
+          return document.createDocumentFragment();
+        }
+
+        const allowedTags = new Set(["B", "STRONG", "I", "EM", "U", "BR", "DIV", "SPAN"]);
+        const tagName = node.tagName.toUpperCase();
+        const fragment = document.createDocumentFragment();
+
+        Array.from(node.childNodes).forEach((child) => {
+          fragment.appendChild(sanitizeNode(child));
+        });
+
+        if (!allowedTags.has(tagName)) {
+          return fragment;
+        }
+
+        const cleanNode = document.createElement(tagName.toLowerCase());
+        if (tagName === "SPAN") {
+          const sizeClass = Array.from(node.classList).find((className) => /^rt-size-[1-6]$/.test(className));
+          if (!sizeClass) {
+            return fragment;
+          }
+          cleanNode.className = sizeClass;
+        }
+        cleanNode.appendChild(fragment);
+        return cleanNode;
+      };
+
+      const container = document.createElement("div");
+      Array.from(template.content.childNodes).forEach((child) => {
+        container.appendChild(sanitizeNode(child));
+      });
+
+      return container.innerHTML
+        .replace(/\u200b/g, "")
+        .replace(/<div><br><\/div>/gi, "<br>")
+        .replace(/<\/div><div>/gi, "<br>")
+        .replace(/^<div>/i, "")
+        .replace(/<\/div>$/i, "");
+    }
+
+    function plainTextToHtml(text) {
+      return escHtml(text).replace(/\n/g, "<br>");
+    }
+
+    function normalizePlainText(text) {
+      return text.replace(/\u00a0/g, " ").replace(/\u200b/g, "").replace(/\n{3,}/g, "\n\n").trim();
+    }
+
+    async function findExistingCustomFolder(folderName) {
+      const normalizedTarget = String(folderName || "").trim().toLowerCase();
+      if (!normalizedTarget || !currentUser) return null;
+
+      const snapshot = await getDocs(query(
+        collection(db, "folders"),
+        where("userId", "==", currentUser.uid)
+      ));
+
+      return snapshot.docs.find((docSnap) => {
+        const existingName = String(docSnap.data().name || "").trim().toLowerCase();
+        return existingName === normalizedTarget;
+      }) || null;
+    }
+
+    function formatFirestoreError(err, action) {
+      const actionLabel = action || "complete this request";
+      const code = err?.code || "";
+      const rawMessage = String(err?.message || "").trim();
+
+      if (code === "permission-denied") {
+        return `Unable to ${actionLabel}: Firestore permission denied. Check deployed rules for the folders collection.`;
+      }
+
+      if (code === "unauthenticated") {
+        return `Unable to ${actionLabel}: sign in again and retry.`;
+      }
+
+      if (code === "failed-precondition") {
+        return `Unable to ${actionLabel}: Firestore index or configuration is missing.`;
+      }
+
+      if (code === "unavailable") {
+        return `Unable to ${actionLabel}: network or Firebase service unavailable.`;
+      }
+
+      return `Unable to ${actionLabel}${rawMessage ? `: ${rawMessage}` : "."}`;
+    }
+
+    function getCurrentAccentColor() {
+      return getComputedStyle(document.documentElement)
+        .getPropertyValue("--accent-color")
+        .trim() || "#8FBF9A";
+    }
+
+    function looksLikeHtml(value) {
+      return /<[^>]+>/.test(value);
     }
 
   function getFolderColor(folder) {
