@@ -420,6 +420,11 @@ async function loadFolderSidebar() {
   const container = document.getElementById("folderList");
   if (!container) return;
 
+  if (!currentUser) {
+    container.innerHTML = `<div style="opacity:.5;">Sign in to load folders.</div>`;
+    return;
+  }
+
   container.innerHTML = `<div style="opacity:.5;">Loading folders...</div>`;
 
   try {
@@ -497,10 +502,11 @@ async function loadFolderSidebar() {
 
   } catch (err) {
     console.error(err);
+    const folderError = formatFirestoreError(err, "load folders");
 
     container.innerHTML = `
       <div style="color:#ff6b6b;font-size:.8rem;">
-        Unable to load folders (blocked)
+        ${escHtml(folderError)}
       </div>
     `;
   }
@@ -526,6 +532,10 @@ async function loadFolderDropdown() {
   createOption.value = "other";
   createOption.textContent = " + Create New Folder ";
   select.appendChild(createOption);
+
+  if (!currentUser) {
+    return;
+  }
 
   try {
     const q = query(
@@ -553,6 +563,7 @@ async function loadFolderDropdown() {
     });
   } catch (err) {
     console.error(err);
+    showToast(formatFirestoreError(err, "load folder options"), true);
   }
 }
 
@@ -700,8 +711,9 @@ async function loadFolderManager() {
     });
   } catch (err) {
     console.error(err);
+    const folderError = formatFirestoreError(err, "load folders");
     folderManagerList.innerHTML = `
-      <div class="loading">Unable to load folders: ${err.message}</div>
+      <div class="loading">${escHtml(folderError)}</div>
     `;
   }
 }
@@ -1373,6 +1385,30 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
         const existingName = String(docSnap.data().name || "").trim().toLowerCase();
         return existingName === normalizedTarget;
       }) || null;
+    }
+
+    function formatFirestoreError(err, action) {
+      const actionLabel = action || "complete this request";
+      const code = err?.code || "";
+      const rawMessage = String(err?.message || "").trim();
+
+      if (code === "permission-denied") {
+        return `Unable to ${actionLabel}: Firestore permission denied. Check deployed rules for the folders collection.`;
+      }
+
+      if (code === "unauthenticated") {
+        return `Unable to ${actionLabel}: sign in again and retry.`;
+      }
+
+      if (code === "failed-precondition") {
+        return `Unable to ${actionLabel}: Firestore index or configuration is missing.`;
+      }
+
+      if (code === "unavailable") {
+        return `Unable to ${actionLabel}: network or Firebase service unavailable.`;
+      }
+
+      return `Unable to ${actionLabel}${rawMessage ? `: ${rawMessage}` : "."}`;
     }
 
     function getCurrentAccentColor() {
