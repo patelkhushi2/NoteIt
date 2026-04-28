@@ -1,6 +1,12 @@
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { addDoc, collection, deleteDoc, doc, getDocs, orderBy, query, serverTimestamp, updateDoc, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { auth, db } from "./firebase.js";
+
+const BUILTIN_FOLDERS = [
+  { key: "school", label: "School" },
+  { key: "work", label: "Work" },
+  { key: "personal", label: "Personal" }
+];
     
   document.addEventListener("DOMContentLoaded", () => {
     let currentUser = null;
@@ -10,6 +16,7 @@ import { auth, db } from "./firebase.js";
     let searchTerm = "";
     let selectedFolderFilter = null;
     let quill;
+    let currentSort = "newest";
 
     // Text Editor
     quill = new Quill('#editor', {
@@ -428,7 +435,7 @@ async function loadFolderSidebar() {
       const f = docSnap.data();
       const btn = document.createElement("button");
       btn.className = "nav-tab";
-      const count = folderCounts[folder.name] || 0;
+      const count = folderCounts[f.name] || 0;
 
       btn.innerHTML = `
         <span class= "folder-name">${f.name}</span>
@@ -439,7 +446,7 @@ async function loadFolderSidebar() {
 
       btn.addEventListener("click", () => {
         currentFilter = "folder";
-        selectedFolderFilter = folder.name;
+        selectedFolderFilter = f.name;
 
         document.querySelectorAll(".nav-tab")
           .forEach(el => el.classList.remove("active"));
