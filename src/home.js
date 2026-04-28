@@ -1,5 +1,5 @@
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { addDoc, collection, deleteDoc, doc, getDocs, query, serverTimestamp, updateDoc, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { addDoc, collection, deleteDoc, doc, getDocs, orderBy, query, serverTimestamp, updateDoc, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { auth, db } from "./firebase.js";
     
   document.addEventListener("DOMContentLoaded", () => {
@@ -9,13 +9,22 @@ import { auth, db } from "./firebase.js";
     let currentView = "notes";
     let searchTerm = "";
     let selectedFolderFilter = null;
-    let currentSort = "newest";
-    let savedNoteRange = null;
-    const BUILTIN_FOLDERS = [
-      { key: "school", label: "School" },
-      { key: "work", label: "Work" },
-      { key: "personal", label: "Personal" }
-    ];
+    let quill;
+
+    // Text Editor
+    quill = new Quill('#editor', {
+      theme: 'snow',
+        placeholder: 'Write your note here…',
+        modules: {
+          toolbar: [
+            ['bold', 'italic', 'underline'],
+            [{ 'align': [] }, { 'list': 'ordered'}, { 'list': 'bullet' }],
+            ['link'],
+            ['clean']
+          ]
+        }
+      });
+
 
     updateFilterTabs();
     updateSectionTitle();
@@ -95,55 +104,7 @@ import { auth, db } from "./firebase.js";
     document.getElementById("cancelBtn").addEventListener("click", () => {
       document.getElementById("composer").classList.remove("open");
       document.getElementById("noteTitle").value = "";
-      setNoteBodyContent("");
-      document.getElementById("noteAccentPicker").value = getCurrentAccentColor();
-      syncPrimaryActions();
-    });
-
-    document.getElementById("folderCreateForm").addEventListener("submit", async (event) => {
-      event.preventDefault();
-
-      const nameInput = document.getElementById("folderCreateInput");
-      const colorInput = document.getElementById("folderCreateColor");
-      const folderName = nameInput.value.trim();
-      const folderColor = colorInput.value || "#8FBF9A";
-
-      if (!folderName) {
-        showToast("Please enter a folder name.", true);
-        nameInput.focus();
-        return;
-      }
-
-      if (BUILTIN_FOLDERS.some((folder) => folder.key === folderName.toLowerCase())) {
-        showToast("That name is already used by a default folder.", true);
-        nameInput.focus();
-        return;
-      }
-
-      try {
-        const existingFolder = await findExistingCustomFolder(folderName);
-        if (existingFolder) {
-          showToast("A folder with that name already exists.", true);
-          nameInput.focus();
-          return;
-        }
-
-        await addDoc(collection(db, "folders"), {
-          name: folderName,
-          color: folderColor,
-          userId: currentUser.uid,
-        });
-
-        nameInput.value = "";
-        colorInput.value = "#8FBF9A";
-        showToast("Folder created ✓");
-        await loadFolderSidebar();
-        await loadFolderDropdown();
-        await loadFolderManager();
-      } catch (err) {
-        console.error(err);
-        showToast("Could not create folder: " + (err.message || "unknown error"), true);
-      }
+      quill.root.innerHTML = "";
     });
 
     // FAVORITE FILTER //
@@ -306,8 +267,7 @@ import { auth, db } from "./firebase.js";
     // SAVE AND EDIT NOTE
     document.getElementById("saveBtn").addEventListener("click", async () => {
       const title = document.getElementById("noteTitle").value.trim();
-      const body = getNoteBodyText();
-      const formattedBody = getNoteBodyHtml();
+      const body = quill.root.innerHTML.trim();
 
       const selectedFolder = document.getElementById("noteFolder").value;
       const newFolder = document.getElementById("newFolderInput")?.value.trim();
@@ -323,7 +283,10 @@ import { auth, db } from "./firebase.js";
         :getFolderColor(folder);
 
       if (!title) { showToast("Please add a title!", true); return; }
-      if (!body)  { showToast("Note can't be empty!", true); return; }
+      if (!quill.getText().trim()) {
+        showToast("Note can't be empty!", true);
+        return;
+      }
       if (!currentUser) return;
 
       try {
@@ -395,7 +358,7 @@ import { auth, db } from "./firebase.js";
         }
 
         document.getElementById("noteTitle").value = "";
-        setNoteBodyContent("");
+        quill.root.innerHTML = "";
         document.getElementById("composer").classList.remove("open");
 
         document.getElementById("newFolderInput").value = "";
@@ -430,13 +393,14 @@ async function loadFolderSidebar() {
   try {
     const q = query(
       collection(db, "folders"),
-      where("userId", "==", currentUser.uid)
+      where("userId", "==", currentUser.uid),
     );
 
     const snapshot = await getDocs(q);
     const notesSnapshot = await getDocs(query(
       collection(db, "notes"),
-      where("userId", "==", currentUser.uid)
+      where("userId", "==", currentUser.uid),
+      orderBy("createdAt", "desc")
     ));
 
     const folderCounts = {};
@@ -460,28 +424,16 @@ async function loadFolderSidebar() {
       seenFolders.add(folder.key.toLowerCase());
     });
 
-    snapshot.forEach(doc => {
-      const f = doc.data();
-      const normalizedName = String(f.name || "").trim();
-      if (!normalizedName) return;
-      const lookupKey = normalizedName.toLowerCase();
-      if (seenFolders.has(lookupKey)) return;
-
-      seenFolders.add(lookupKey);
-      folders.push({
-        name: normalizedName,
-        label: normalizedName
-      });
-    });
-
-    folders.forEach((folder) => {
+    snapshot.forEach(docSnap => {
+      const f = docSnap.data();
       const btn = document.createElement("button");
       btn.className = "nav-tab";
       const count = folderCounts[folder.name] || 0;
 
       btn.innerHTML = `
-        <span>${folder.label}</span>
-        <span class="nav-count">${count}</span>
+        <span class= "folder-name">${f.name}</span>
+        <span class= "nav-count">${count}</span>
+        <span class="folder-delete" data-id="${docSnap.id}">🗑</span>
       `;
       container.appendChild(btn);
 
@@ -498,8 +450,24 @@ async function loadFolderSidebar() {
         updateSectionTitle();
         loadNotes();
       });
-    });
 
+        btn.querySelector(".folder-delete").addEventListener("click", async (e) => {
+          e.stopPropagation();
+
+          const id = e.currentTarget.dataset.id;
+
+          try {
+            await deleteDoc(doc(db, "folders", id));
+            showToast("Folder deleted.");
+            loadFolderSidebar();
+            loadFolderDropdown();
+            loadNotes();
+          } catch (err) {
+            console.error(err);
+            showToast("Error deleting folder: " + err.message, true);
+          }
+        });
+    });
   } catch (err) {
     console.error(err);
     const folderError = formatFirestoreError(err, "load folders");
@@ -725,7 +693,8 @@ async function loadFolderManager() {
     try {
       const q = query(
         collection(db, "notes"),
-        where("userId", "==", currentUser.uid)
+        where("userId", "==", currentUser.uid),
+        orderBy("createdAt", "desc")
       );
       
       const snapshot = await getDocs(q);
@@ -739,10 +708,13 @@ async function loadFolderManager() {
       grid.innerHTML = "";
       let docs = snapshot.docs;
 
-      if (currentFilter === "archived") {
-        docs = docs.filter(d => d.data().isArchived);
-      } else {
-        docs = docs.filter(d => !d.data().isArchived);
+      if (searchTerm) {
+        docs = docs.filter((docSnap) => matchesSearch(docSnap.data(), searchTerm));
+      }
+
+      if (!docs.length) {
+        renderEmptyState(grid);
+        return;
       }
 
       if (currentFilter === "favorites") {
@@ -782,7 +754,7 @@ async function loadFolderManager() {
             <span class="note-date">${date}</span>
           </div>
           <div class="note-title">${escHtml(data.title || "Untitled")}</div>
-          <div class="note-preview">${escHtml(data.text || "")}</div>
+          <div class="note-preview">${data.text || ""}</div>
           <div class="note-footer">
           <div class="note-action">
             <button class="btn-pdf" data-title="${escHtml(data.title)}" data-text="${escHtml(data.text)}">📄 PDF</button>
@@ -901,7 +873,7 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
             const accent = document.getElementById("noteAccentPicker");
 
             document.getElementById("noteTitle").value = data.title || "";
-            setNoteBodyContent(data.formattedText || data.text || "");
+            quill.root.innerHTML = data.text || "";
 
             const isCustom = !["school","work","personal","other"].includes(data.folder);
 

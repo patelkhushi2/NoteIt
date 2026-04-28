@@ -208,7 +208,11 @@
     }
 
     /* MAIN */
-    .main { max-width: 900px; margin: 0 auto; padding: 40px 24px; }
+    .main { 
+      max-width: 900px; 
+      margin: 0 auto; 
+      padding: 40px 24px; 
+    }
     .shell {
       max-width: 1200px;
       display: grid;
@@ -251,11 +255,26 @@
       font-size: .95rem;
       cursor: pointer;
       transition: all .18s;
+      position: relative;
     }
-    .nav-tab:hover {
-      border-color: rgba(255,255,255,.08);
-      background: rgba(255,255,255,.03);
-      color: #f0f0f0;
+    .folder-delete {
+      position: absolute;
+      right: 12px;
+      opacity: 0;
+      font-size: .82rem;
+      color: rgba(255,255,255,.25);
+      transition: color .15s ease;
+      cursor: pointer;
+    }
+    .nav-tab:hover .nav-count {
+      opacity: 0;
+    }
+    .nav-tab:hover .folder-delete {
+      opacity: 1;
+    }
+    .folder-delete:hover {
+      color: #ff6b6b;
+      transform: scale(1.1);
     }
     .nav-tab.active {
       background: linear-gradient(135deg, rgba(var(--accent-rgb), .18), rgba(var(--accent-rgb), .06));
@@ -275,12 +294,6 @@
     .btn-logout:hover { 
       border-color: #ff6b6b; 
       color: #ff6b6b; 
-    }
-
-    /* MAIN */
-    .main { max-width: 1240px; 
-      margin: 0 auto; 
-      padding: 40px 24px; 
     }
 
     .section-header {
@@ -710,15 +723,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 14px;
-      flex-wrap: wrap;
-    }
-    .composer-controls {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex: 1 1 320px;
-      flex-wrap: wrap;
+      margin-top: 10px;
     }
     .composer select {
       background: rgba(var(--accent-rgb), .08);
@@ -977,6 +982,53 @@
       border-color: rgba(255,214,10,.35);
       background: rgba(255,214,10,.12);
     }
+    .btn-delete {
+      background: transparent;
+      border: none;
+      color: rgba(255,255,255,.25);
+      cursor: pointer;
+      font-size: .75rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: all .15s;
+      opacity: 0;
+    }
+
+    /* Import/Export Button */
+    .btn-pdf {
+      background: transparent;
+      border: none;
+      color: rgba(255,255,255,.25);
+      cursor: pointer;
+      font-size: .75rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: all .15s;
+      opacity: 0;
+    }
+    .btn-txt {
+      background: transparent;
+      border: none;
+      color: rgba(255,255,255,.25);
+      cursor: pointer;
+      font-size: .75rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: all .15s;
+      opacity: 0;
+    }
+    .btn-copy {
+      background: transparent;
+      border: none;
+      color: rgba(255,255,255,.25);
+      cursor: pointer;
+      font-size: .75rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: all .15s;
+      opacity: 0;
+    }
+    
     /* EMPTY STATE */
     .empty {
       grid-column: 1/-1;
@@ -1199,30 +1251,9 @@
       border-color: rgba(var(--accent-rgb), .24);
       background: rgba(var(--accent-rgb), .09);
     }
-    .btn-archive {
-      color: #d6e3ff;
-      border-color: rgba(143,169,255,.24);
-      background: rgba(143,169,255,.09);
-    }
-    .btn-delete {
-      color: #ffd0d0;
-      border-color: rgba(255,107,107,.22);
-      background: rgba(255,107,107,.08);
-    }
-    .btn-archive:hover {
-      color: #cfe0ff;
-      border-color: rgba(143,169,255,.42);
-      background: rgba(143,169,255,.18);
-    }
-    .btn-edit:hover {
-      color: #e3f6e8;
-      border-color: rgba(var(--accent-rgb), .42);
-      background: rgba(var(--accent-rgb), .18);
-    }
-    .btn-delete:hover {
-      color: #ffe0e0;
-      border-color: rgba(255,107,107,.4);
-      background: rgba(255,107,107,.18);
+
+    .note-card:hover .btn-delete, .note-card:hover .btn-edit, .note-card:hover .btn-pdf, .note-card:hover .btn-txt, .note-card:hover .btn-copy{ 
+      opacity: 1; 
     }
 
     @media (max-width: 920px) {
@@ -1353,33 +1384,78 @@
       }
     }
 
+
+    /* Quill - Text Editor */
+    .quill-editor {
+      margin-bottom: 12px;
+    }
+
+    .ql-toolbar {
+      background: rgba(255,255,255,.06);
+      border: 1px solid #1F2A24 !important;
+      border-bottom: none !important;
+      border-radius: 10px 10px 0 0;
+      padding: 8px;
+      box-shadow: none !important;
+      margin-top: 0;
+    }
+
+    .ql-toolbar button {
+      color: rgba(255,255,255,.6);
+      border-radius: 6px;
+      transition: all .15s ease;
+    }
+
+    .ql-toolbar button:hover {
+      color: #8FBF9A;
+      background: rgba(143,191,154,.12);
+    }
+
+    .ql-toolbar button.ql-active {
+      color: #8FBF9A;
+      background: rgba(143,191,154,.2);
+    }
+
+    .ql-container {
+      background: rgba(255,255,255,.06);
+      border: 1px solid #1F2A24 !important;
+      border-top: none !important;
+      border-radius: 0 0 10px 10px;
+      min-height: 120px;
+      box-shadow: none !important;
+      margin-top: 0; 
+    }
+
+    .ql-editor {
+      color: #E6E6E6;
+      font-family: 'DM Sans', sans-serif;
+      font-size: .9rem;
+      line-height: 1.6;
+      padding: 12px 16px;
+    }
+
+    .ql-editor.ql-blank::before {
+      color: rgba(255,255,255,.3);
+      font-style: normal;
+    }
+
+    .ql-container:focus-within {
+      border-color: #8FBF9A !important;
+    }
+
+
     /* LIGHT MODE */
-    body.light-mode .note-action button {
-      background: #ffffff;
-      color: #2b3640;
-      border-color: #d7dde3;
-      box-shadow: 0 6px 16px rgba(17,24,39,.04);
+    body.light-mode .empty {
+      color: #6b7280;
     }
-    body.light-mode .note-action button:hover {
+    body.light-mode .empty-title {
       color: #111827;
-      border-color: #b8c4cf;
-      background: #f8fafc;
-      box-shadow: 0 10px 22px rgba(17,24,39,.08);
     }
-    body.light-mode .btn-pdf:hover {
-      color: #8a5a00;
-      border-color: #f1cf89;
-      background: #fff6df;
+    body.light-mode .empty-sub {
+      color: #6b7280;
     }
-    body.light-mode .btn-txt:hover {
-      color: #2e6a3b;
-      border-color: #b8ddc2;
-      background: #eefaf1;
-    }
-    body.light-mode .btn-copy:hover {
-      color: #265285;
-      border-color: #bdd3ef;
-      background: #eff6ff;
+    body.light-mode .empty-icon {
+      opacity:0.6;
     }
     body.light-mode .btn-delete:hover {
       color: #b83b3b;
@@ -1636,7 +1712,7 @@
     }
     body.light-mode .support-fab {
       color: #ffffff;
-      background: linear-gradient(135deg, #7fa8ff, #5b8def);
+      background: linear-gradient(135deg, #8FBF9A, #709D7B  );
       border-color: rgba(91,141,239,.45);
       box-shadow: 0 16px 38px rgba(91,141,239,.2);
     }
@@ -1649,7 +1725,7 @@
       box-shadow: 0 24px 50px rgba(15,23,42,.12);
     }
     body.light-mode .support-eyebrow {
-      color: #5b8def;
+      color: #8FBF9A;
     }
     body.light-mode .support-panel h2,
     body.light-mode .support-field span {
@@ -1671,91 +1747,68 @@
       color: #4b5563;
     }
     body.light-mode .support-submit {
-      background: #5b8def;
+      background: #8FBF9A;
       color: #ffffff;
     }
     body.light-mode .main { 
       background: #f5f5f7 !important; 
     }
 
-    .textformatBar {
-      display: flex;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-bottom: 16px;
-    } 
-
-    .textformatBar button {
-      background: rgba(255,255,255,.06);
-      border: 1px solid #1F2A24;
-      border-radius: 8px;
-      color: #E6E6E6;
-      font-family: 'DM Sans', sans-serif;
-      font-size: .8rem;
-      font-weight: 700;
-      padding: 6px 10px;
-      outline: none;
-      margin-bottom: 6px;
-      transition: border-color .2s;
-    } 
-    .textsize-control {
-      display: inline-flex;
-      align-items: center;
-      gap: 0;
-      margin-bottom: 6px;
-      border: 1px solid #1F2A24;
-      border-radius: 10px;
-      overflow: hidden;
-      background: rgba(255,255,255,.04);
-    }
-    .textsize-control button {
-      min-width: 34px;
-      margin-bottom: 0;
-      border: none;
-      border-radius: 0;
-      background: transparent;
-      padding: 6px 10px;
-      font-size: .95rem;
-      line-height: 1;
-    }
-    .textsize-indicator {
-      min-width: 36px;
-      padding: 6px 10px;
-      text-align: center;
-      font-size: .78rem;
-      font-weight: 800;
-      color: rgba(255,255,255,.86);
-      border-left: 1px solid rgba(255,255,255,.08);
-      border-right: 1px solid rgba(255,255,255,.08);
-      background: rgba(255,255,255,.06);
+    body.light-mode .ql-toolbar {
+      background: #F9FAFB;
+      border-color: #D1D5DB !important;
     }
 
-    .textformatBar button:hover { 
-      border-color: var(--accent-color); 
-      color : var(--accent-color);
+    body.light-mode .ql-container {
+      background: #F9FAFB;
+      border-color: #D1D5DB !important;
     }
-    .textformatBar button.active {
-      background: rgba(var(--accent-rgb), .18);
-      border-color: var(--accent-color);
-      color: var(--accent-color);
-      box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), .12);
+
+    body.light-mode .ql-editor {
+      color: #1A1D23;
     }
-    body.light-mode .note-editor[contenteditable="true"]:empty::before {
+
+    body.light-mode .ql-editor.ql-blank::before {
       color: #9ca3af;
     }
-    body.light-mode .textformatBar button.active {
-      background: rgba(var(--accent-rgb), .14);
-      border-color: var(--accent-color);
-      color: #2f5d38;
+
+    body.light-mode .ql-toolbar button {
+      color: #4B5563;
     }
-    body.light-mode .textsize-control {
+
+    body.light-mode .ql-toolbar button:hover {
+      color: #8FBF9A;
+      background: rgba(143,191,154,.1);
+    }
+
+    body.light-mode .ql-toolbar button.ql-active {
+      color: #8FBF9A;
+      background: rgba(143,191,154,.15);
+    }
+    body.light-mode .btn-pdf:hover, 
+    body.light-mode .btn-txt:hover, 
+    body.light-mode .btn-copy:hover {
+      color: #8FBF9A;
+      background: #f0f0f0;
+    }
+
+    body.light-mode .btn-delete:hover {
+      color: #dc2626;
+      background: #f0f0f0;
+    }
+
+    body.light-mode .btn-edit:hover {
+      color: #059669;
+      background: #f0f0f0;
+    }
+
+    body.light-mode .note-action button{
       background: #f3f4f6;
-      border-color: #d7dde3;
+      border: 1px solid #e5e7eb;
+      color: #4B5563;
     }
-    body.light-mode .textsize-indicator {
-      color: #1f2937;
-      background: #ffffff;
-      border-left-color: #d7dde3;
-      border-right-color: #d7dde3;
+
+    body.light-mode .note-action button:hover {
+      color: #059669;
+      background: #e5e7eb;
     }
