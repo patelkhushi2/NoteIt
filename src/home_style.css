@@ -216,11 +216,26 @@
       font-size: .95rem;
       cursor: pointer;
       transition: all .18s;
+      position: relative;
     }
-    .nav-tab:hover {
-      border-color: rgba(255,255,255,.08);
-      background: rgba(255,255,255,.03);
-      color: #f0f0f0;
+    .folder-delete {
+      position: absolute;
+      right: 12px;
+      opacity: 0;
+      font-size: .82rem;
+      color: rgba(255,255,255,.25);
+      transition: color .15s ease;
+      cursor: pointer;
+    }
+    .nav-tab:hover .nav-count {
+      opacity: 0;
+    }
+    .nav-tab:hover .folder-delete {
+      opacity: 1;
+    }
+    .folder-delete:hover {
+      color: #ff6b6b;
+      transform: scale(1.1);
     }
     .nav-tab.active {
       background: linear-gradient(135deg, rgba(200,240,74,.18), rgba(200,240,74,.06));
@@ -963,6 +978,18 @@
 
 
     /* LIGHT MODE */
+    body.light-mode .empty {
+      color: #6b7280;
+    }
+    body.light-mode .empty-title {
+      color: #111827;
+    }
+    body.light-mode .empty-sub {
+      color: #6b7280;
+    }
+    body.light-mode .empty-icon {
+      opacity:0.6;
+    }
     body.light-mode .btn-delete:hover {
       color: #ff6b6b;
       background: rgba(255,107,107,.1);
@@ -1122,7 +1149,7 @@
     }
     body.light-mode .support-fab {
       color: #ffffff;
-      background: linear-gradient(135deg, #7fa8ff, #5b8def);
+      background: linear-gradient(135deg, #8FBF9A, #709D7B  );
       border-color: rgba(91,141,239,.45);
       box-shadow: 0 16px 38px rgba(91,141,239,.2);
     }
@@ -1135,7 +1162,7 @@
       box-shadow: 0 24px 50px rgba(15,23,42,.12);
     }
     body.light-mode .support-eyebrow {
-      color: #5b8def;
+      color: #8FBF9A;
     }
     body.light-mode .support-panel h2,
     body.light-mode .support-field span {
@@ -1157,7 +1184,7 @@
       color: #4b5563;
     }
     body.light-mode .support-submit {
-      background: #5b8def;
+      background: #8FBF9A;
       color: #ffffff;
     }
     body.light-mode .main { 
@@ -1194,4 +1221,31 @@
     body.light-mode .ql-toolbar button.ql-active {
       color: #8FBF9A;
       background: rgba(143,191,154,.15);
+    }
+    body.light-mode .btn-pdf:hover, 
+    body.light-mode .btn-txt:hover, 
+    body.light-mode .btn-copy:hover {
+      color: #8FBF9A;
+      background: #f0f0f0;
+    }
+
+    body.light-mode .btn-delete:hover {
+      color: #dc2626;
+      background: #f0f0f0;
+    }
+
+    body.light-mode .btn-edit:hover {
+      color: #059669;
+      background: #f0f0f0;
+    }
+
+    body.light-mode .note-action button{
+      background: #f3f4f6;
+      border: 1px solid #e5e7eb;
+      color: #4B5563;
+    }
+
+    body.light-mode .note-action button:hover {
+      color: #059669;
+      background: #e5e7eb;
     }

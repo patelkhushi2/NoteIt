@@ -339,15 +339,16 @@ import { auth, db } from "./firebase.js";
       return;
     }
 
-    snapshot.forEach(doc => {
-      const f = doc.data();
+    snapshot.forEach(docSnap => {
+      const f = docSnap.data();
       const btn = document.createElement("button");
       btn.className = "nav-tab";
       const count = folderCounts[f.name] || 0;
 
       btn.innerHTML = `
-        <span>${f.name}</span>
-        <span class="nav-count">${count}</span>
+        <span class= "folder-name">${f.name}</span>
+        <span class= "nav-count">${count}</span>
+        <span class="folder-delete" data-id="${docSnap.id}">🗑</span>
       `;
       container.appendChild(btn);
 
@@ -362,8 +363,24 @@ import { auth, db } from "./firebase.js";
 
         loadNotes();
       });
-    });
 
+        btn.querySelector(".folder-delete").addEventListener("click", async (e) => {
+          e.stopPropagation();
+
+          const id = e.currentTarget.dataset.id;
+
+          try {
+            await deleteDoc(doc(db, "folders", id));
+            showToast("Folder deleted.");
+            loadFolderSidebar();
+            loadFolderDropdown();
+            loadNotes();
+          } catch (err) {
+            console.error(err);
+            showToast("Error deleting folder: " + err.message, true);
+          }
+        });
+    });
   } catch (err) {
     console.error(err);
 
