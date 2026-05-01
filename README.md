@@ -43,11 +43,11 @@ src/
 firebase.json       Firebase hosting configuration
 firestore.rules     Firestore security rules
 
-## Deployment 
+Deployment 
 
 The project is configured for Firebase deployement 
 
-Group Members:
+Group Members
 - Shari Li
 - Khushi Patel  
 - Sade Adeaca
