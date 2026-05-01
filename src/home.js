@@ -80,31 +80,10 @@ const BUILTIN_FOLDERS = [
       color.style.display = show ? "block" : "none";
     });
 
-    const noteBody = document.getElementById("noteBody");
-    noteBody?.addEventListener("mouseup", rememberNoteSelection);
-    noteBody?.addEventListener("keyup", rememberNoteSelection);
-    noteBody?.addEventListener("focus", rememberNoteSelection);
-    noteBody?.addEventListener("input", () => {
-      rememberNoteSelection();
-      updateFormatButtons();
-    });
-    document.addEventListener("selectionchange", () => {
-      rememberNoteSelection();
-      updateFormatButtons();
-    });
-
-    document.querySelectorAll(".textformatBar button").forEach((button) => {
-      button.addEventListener("mousedown", (event) => {
-        event.preventDefault();
-        applyTextFormat(button.dataset.format);
-      });
-    });
-
     // ── COMPOSER TOGGLE ──
     document.getElementById("newNoteBtn").addEventListener("click", () => {
       setActiveView("notes");
       document.getElementById("composer").classList.add("open");
-      document.getElementById("noteAccentPicker").value = getCurrentAccentColor();
       syncPrimaryActions();
       document.getElementById("noteTitle").focus();
     });
@@ -275,11 +254,11 @@ const BUILTIN_FOLDERS = [
     document.getElementById("saveBtn").addEventListener("click", async () => {
       const title = document.getElementById("noteTitle").value.trim();
       const body = quill.root.innerHTML.trim();
+      const formattedBody = body;
 
       const selectedFolder = document.getElementById("noteFolder").value;
       const newFolder = document.getElementById("newFolderInput")?.value.trim();
       const pickedColor = document.getElementById("folderColorPicker")?.value;
-      const noteAccentColor = document.getElementById("noteAccentPicker")?.value || pickedColor || getFolderColor(selectedFolder);
 
       const folder = selectedFolder === "other" && newFolder
         ? newFolder
@@ -288,6 +267,7 @@ const BUILTIN_FOLDERS = [
       const folderColor = selectedFolder === "other" && newFolder
         ? pickedColor
         :getFolderColor(folder);
+      const noteAccentColor = folderColor;
 
       if (!title) { showToast("Please add a title!", true); return; }
       if (!quill.getText().trim()) {
@@ -372,7 +352,6 @@ const BUILTIN_FOLDERS = [
         document.getElementById("newFolderInput").style.display = "none"; 
 
         document.getElementById("folderColorPicker").style.display = "none";
-        document.getElementById("noteAccentPicker").value = getCurrentAccentColor();
         loadFolderSidebar();
         loadFolderDropdown();
         loadFolderManager();
@@ -422,23 +401,49 @@ async function loadFolderSidebar() {
 
     container.innerHTML = "";
     const seenFolders = new Set();
-    const folders = BUILTIN_FOLDERS.map((folder) => ({
-      name: folder.key,
-      label: folder.label
-    }));
 
     BUILTIN_FOLDERS.forEach((folder) => {
       seenFolders.add(folder.key.toLowerCase());
+      const btn = document.createElement("button");
+      btn.className = "nav-tab";
+      const count = folderCounts[folder.key] || 0;
+
+      btn.innerHTML = `
+        <span class="folder-name">${folder.label}</span>
+        <span class="nav-count">${count}</span>
+      `;
+      container.appendChild(btn);
+
+      btn.addEventListener("click", () => {
+        currentFilter = "folder";
+        selectedFolderFilter = folder.key;
+
+        document.querySelectorAll(".nav-tab")
+          .forEach(el => el.classList.remove("active"));
+
+        btn.classList.add("active");
+
+        setActiveView("notes");
+        updateSectionTitle();
+        loadNotes();
+      });
     });
 
     snapshot.forEach(docSnap => {
       const f = docSnap.data();
+      const folderName = String(f.name || "").trim();
+      if (!folderName) return;
+
+      const lookupKey = folderName.toLowerCase();
+      if (seenFolders.has(lookupKey)) return;
+      seenFolders.add(lookupKey);
+
       const btn = document.createElement("button");
       btn.className = "nav-tab";
-      const count = folderCounts[f.name] || 0;
+      const count = folderCounts[folderName] || 0;
 
       btn.innerHTML = `
-        <span class= "folder-name">${f.name}</span>
+        <span class= "folder-name">${escHtml(folderName)}</span>
         <span class= "nav-count">${count}</span>
         <span class="folder-delete" data-id="${docSnap.id}">🗑</span>
       `;
@@ -446,7 +451,7 @@ async function loadFolderSidebar() {
 
       btn.addEventListener("click", () => {
         currentFilter = "folder";
-        selectedFolderFilter = f.name;
+        selectedFolderFilter = folderName;
 
         document.querySelectorAll(".nav-tab")
           .forEach(el => el.classList.remove("active"));
@@ -724,12 +729,18 @@ async function loadFolderManager() {
         return;
       }
 
-      if (currentFilter === "favorites") {
-        docs = docs.filter(d => d.data().isFavorite);
-      }
-        
-      if (currentFilter === "folder" && selectedFolderFilter) {
-        docs = docs.filter(d => d.data().folder === selectedFolderFilter);
+      if (currentFilter === "archived") {
+        docs = docs.filter(d => d.data().isArchived);
+      } else {
+        docs = docs.filter(d => !d.data().isArchived);
+
+        if (currentFilter === "favorites") {
+          docs = docs.filter(d => d.data().isFavorite);
+        }
+          
+        if (currentFilter === "folder" && selectedFolderFilter) {
+          docs = docs.filter(d => d.data().folder === selectedFolderFilter);
+        }
       }
 
       if (searchTerm) {
@@ -877,7 +888,6 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
 
             const input = document.getElementById("newFolderInput");
             const color = document.getElementById("folderColorPicker");
-            const accent = document.getElementById("noteAccentPicker");
 
             document.getElementById("noteTitle").value = data.title || "";
             quill.root.innerHTML = data.text || "";
@@ -896,8 +906,6 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
               input.style.display = "none";
               color.style.display = "none";
             }
-
-            accent.value = data.noteAccentColor || data.folderColor || "#8FBF9A";
 
             setActiveView("notes");
             document.getElementById("composer").classList.add("open");
