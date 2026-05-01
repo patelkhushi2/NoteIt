@@ -15,23 +15,8 @@ const BUILTIN_FOLDERS = [
     let currentView = "notes";
     let searchTerm = "";
     let selectedFolderFilter = null;
-    let quill;
     let currentSort = "newest";
-
-    // Text Editor
-    quill = new Quill('#editor', {
-      theme: 'snow',
-        placeholder: 'Write your note here…',
-        modules: {
-          toolbar: [
-            ['bold', 'italic', 'underline'],
-            [{ 'align': [] }, { 'list': 'ordered'}, { 'list': 'bullet' }],
-            ['link'],
-            ['clean']
-          ]
-        }
-      });
-
+    let savedNoteRange = null;
 
     updateFilterTabs();
     updateSectionTitle();
@@ -111,7 +96,7 @@ const BUILTIN_FOLDERS = [
     document.getElementById("cancelBtn").addEventListener("click", () => {
       document.getElementById("composer").classList.remove("open");
       document.getElementById("noteTitle").value = "";
-      quill.root.innerHTML = "";
+      setNoteBodyContent("");
     });
 
     // FAVORITE FILTER //
@@ -274,7 +259,8 @@ const BUILTIN_FOLDERS = [
     // SAVE AND EDIT NOTE
     document.getElementById("saveBtn").addEventListener("click", async () => {
       const title = document.getElementById("noteTitle").value.trim();
-      const body = quill.root.innerHTML.trim();
+      const body = getNoteBodyText();
+      const formattedBody = getNoteBodyHtml();
 
       const selectedFolder = document.getElementById("noteFolder").value;
       const newFolder = document.getElementById("newFolderInput")?.value.trim();
@@ -290,7 +276,7 @@ const BUILTIN_FOLDERS = [
         :getFolderColor(folder);
 
       if (!title) { showToast("Please add a title!", true); return; }
-      if (!quill.getText().trim()) {
+      if (!body) {
         showToast("Note can't be empty!", true);
         return;
       }
@@ -365,7 +351,7 @@ const BUILTIN_FOLDERS = [
         }
 
         document.getElementById("noteTitle").value = "";
-        quill.root.innerHTML = "";
+        setNoteBodyContent("");
         document.getElementById("composer").classList.remove("open");
 
         document.getElementById("newFolderInput").value = "";
@@ -880,7 +866,7 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
             const accent = document.getElementById("noteAccentPicker");
 
             document.getElementById("noteTitle").value = data.title || "";
-            quill.root.innerHTML = data.text || "";
+            setNoteBodyContent(data.formattedText || data.text || "");
 
             const isCustom = !["school","work","personal","other"].includes(data.folder);
 
@@ -1424,6 +1410,10 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
       clearTimeout(toastTimer);
       toastTimer = setTimeout(() => t.className = "toast", 3000);
     }
+
+    window.format = function(command, value = null) {
+      document.execCommand(command, false, value);
+    };
   });
 
   // ── EXPORT TO PDF ──
