@@ -753,8 +753,7 @@
       margin-bottom: 0;
       min-height: 42px;
     }
-    #folderColorPicker,
-    #noteAccentPicker {
+    #folderColorPicker {
       width: 42px;
       min-width: 42px;
       height: 42px;
@@ -764,12 +763,10 @@
       background: rgba(var(--accent-rgb), .08);
       cursor: pointer;
     }
-    #folderColorPicker::-webkit-color-swatch-wrapper,
-    #noteAccentPicker::-webkit-color-swatch-wrapper {
+    #folderColorPicker::-webkit-color-swatch-wrapper {
       padding: 0;
     }
-    #folderColorPicker::-webkit-color-swatch,
-    #noteAccentPicker::-webkit-color-swatch {
+    #folderColorPicker::-webkit-color-swatch {
       border: none;
       border-radius: 6px;
     }
