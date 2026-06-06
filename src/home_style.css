@@ -446,7 +446,8 @@
       padding: 24px;
       box-shadow: 0 28px 80px rgba(0,0,0,.4);
     }
-    .folder-manager-overlay {
+    .folder-manager-overlay,
+    .share-overlay {
       position: fixed;
       inset: 0;
       display: grid;
@@ -455,6 +456,68 @@
       background: rgba(8,10,13,.56);
       backdrop-filter: blur(10px);
       z-index: 1200;
+    }
+    .share-dialog {
+      width: min(560px, calc(100vw - 32px));
+      max-height: min(78vh, 680px);
+      overflow: auto;
+      background: #1A1D23;
+      border: 1px solid #2A2F36;
+      border-radius: 24px;
+      padding: 24px;
+      box-shadow: 0 28px 80px rgba(0,0,0,.4);
+    }
+    .share-form {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      margin-bottom: 22px;
+      padding: 14px;
+      border-radius: 18px;
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.08);
+    }
+    #shareEmail {
+      width: 100%;
+      background: rgba(255,255,255,.03);
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 12px;
+      color: #E6E6E6;
+      font-family: 'DM Sans', sans-serif;
+      font-size: .92rem;
+      padding: 11px 14px;
+      outline: none;
+    }
+    #shareEmail:focus {
+      border-color: rgba(var(--accent-rgb), .7);
+      background: rgba(255,255,255,.06);
+    }
+    .share-list {
+      display: grid;
+      gap: 10px;
+    }
+    .share-person,
+    .share-empty {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 14px;
+      background: rgba(255,255,255,.04);
+      color: rgba(255,255,255,.72);
+      font-size: .86rem;
+    }
+    .share-remove {
+      border: 1px solid rgba(255,107,107,.22);
+      border-radius: 999px;
+      background: rgba(255,107,107,.08);
+      color: #ff9b9b;
+      padding: 6px 10px;
+      cursor: pointer;
+      font-size: .72rem;
+      font-weight: 700;
     }
     .folder-manager-head {
       display: flex;
@@ -898,6 +961,20 @@
       border-color: rgba(255,214,10,.28);
       box-shadow: 0 12px 36px rgba(255,214,10,.08);
     }
+    .shared-badge {
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      padding: 4px 8px;
+      border-radius: 999px;
+      color: #b6d7ff;
+      background: rgba(127,168,255,.1);
+      border: 1px solid rgba(127,168,255,.2);
+      font-size: .66rem;
+      font-weight: 700;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+    }
     @keyframes cardIn {
       from { opacity:0; transform: scale(.96) translateY(8px); }
       to   { opacity:1; transform: scale(1) translateY(0); }
@@ -1310,6 +1387,11 @@
       border-color: rgba(182,215,255,.34);
       background: rgba(182,215,255,.12);
     }
+    .btn-share {
+      color: #b6d7ff;
+      border-color: rgba(127,168,255,.24);
+      background: rgba(127,168,255,.09);
+    }
     .btn-edit {
       color: #cfe7d5;
       border-color: rgba(var(--accent-rgb), .24);
@@ -1408,6 +1490,9 @@
         align-items: stretch;
       }
       .folder-create-form {
+        grid-template-columns: 1fr;
+      }
+      .share-form {
         grid-template-columns: 1fr;
       }
       .folder-swatch {
@@ -1639,11 +1724,13 @@
     body.light-mode .search-box input::placeholder {
       color: #9ca3af;
     }
-    body.light-mode .folder-manager {
+    body.light-mode .folder-manager,
+    body.light-mode .share-dialog {
       background: #ffffff;
       border-color: #D1D5DB;
     }
-    body.light-mode .folder-manager-overlay {
+    body.light-mode .folder-manager-overlay,
+    body.light-mode .share-overlay {
       background: rgba(15,23,42,.28);
     }
     body.light-mode .folder-manager-copy,
@@ -1663,6 +1750,18 @@
       background: #ffffff;
       border-color: #d7dde3;
       color: #111827;
+    }
+    body.light-mode #shareEmail {
+      background: #ffffff;
+      border-color: #d7dde3;
+      color: #111827;
+    }
+    body.light-mode .share-form,
+    body.light-mode .share-person,
+    body.light-mode .share-empty {
+      background: #f8fafc;
+      border-color: #e3e8ef;
+      color: #334155;
     }
     body.light-mode #folderCreateColor {
       background: #ffffff;

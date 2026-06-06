@@ -53,3 +53,15 @@ Group Members
 - Sade Adeaca
 - Muhammad Javed
 
+## Firebase Authentication Setup
+
+The login page supports Google and verified email/password accounts. Before deploying:
+
+1. In Firebase Console, open **Authentication > Sign-in method** and enable **Email/Password** and **Google**.
+2. In **Authentication > Settings > Password policy**, require a minimum password length of at least 8 characters and enable the complexity requirements appropriate for the project.
+3. Enable email enumeration protection for the Firebase project.
+4. Deploy the Firestore ownership rules with `firebase deploy --only firestore:rules`.
+
+## Note Sharing
+
+Note owners can share a note with another verified NoteIT account by email. Shared notes appear under **Shared With Me** and remain read-only for recipients. Deploy the current Firestore rules before using this feature.

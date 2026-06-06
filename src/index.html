@@ -12,7 +12,35 @@
   <div class="bg"></div>
   <div class="card">
     <div class="logo">Note<span>IT</span></div>
-    <div class="tagline"></div>
+    <div class="tagline">Your notes, available when you need them.</div>
+
+    <div class="auth-tabs" role="tablist" aria-label="Account access">
+      <button class="auth-tab active" id="signInTab" type="button" role="tab" aria-selected="true">Sign In</button>
+      <button class="auth-tab" id="createAccountTab" type="button" role="tab" aria-selected="false">Create Account</button>
+    </div>
+
+    <form class="auth-form" id="emailAuthForm" novalidate>
+      <label class="field hidden" id="nameField">
+        <span>Username</span>
+        <input id="displayName" name="displayName" type="text" autocomplete="name" maxlength="40" placeholder="How should we address you?"/>
+      </label>
+      <label class="field">
+        <span>Email</span>
+        <input id="email" name="email" type="email" autocomplete="email" placeholder="you@example.com" required/>
+      </label>
+      <label class="field">
+        <span>Password</span>
+        <input id="password" name="password" type="password" autocomplete="current-password" minlength="8" placeholder="Enter your password" required/>
+      </label>
+      <label class="field hidden" id="confirmPasswordField">
+        <span>Confirm password</span>
+        <input id="confirmPassword" name="confirmPassword" type="password" autocomplete="new-password" minlength="8" placeholder="Enter your password again"/>
+      </label>
+      <button class="forgot-btn" id="forgotPasswordBtn" type="button">Forgot password?</button>
+      <button class="primary-btn" id="emailAuthBtn" type="submit">Sign In</button>
+    </form>
+
+    <div class="divider"><span>or</span></div>
 
     <button class="google-btn" id="googleLoginBtn">
       <svg width="18" height="18" viewBox="0 0 18 18">
@@ -23,7 +51,7 @@
       </svg>
       Continue with Google
     </button>
-    <div class="status" id="statusMsg"></div>
+    <div class="status" id="statusMsg" role="status" aria-live="polite"></div>
   </div>
 
   <script type="module" src="index.js"></script>
