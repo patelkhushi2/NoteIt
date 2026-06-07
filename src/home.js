@@ -15,23 +15,9 @@ const BUILTIN_FOLDERS = [
     let currentView = "notes";
     let searchTerm = "";
     let selectedFolderFilter = null;
-    let quill;
     let currentSort = "newest";
-
-    // Text Editor
-    quill = new Quill('#editor', {
-      theme: 'snow',
-        placeholder: 'Write your note here…',
-        modules: {
-          toolbar: [
-            ['bold', 'italic', 'underline'],
-            [{ 'align': [] }, { 'list': 'ordered'}, { 'list': 'bullet' }],
-            ['link'],
-            ['clean']
-          ]
-        }
-      });
-
+    let savedNoteRange = null;
+    let activeSharingNote = null;
 
     updateFilterTabs();
     updateSectionTitle();
@@ -40,6 +26,13 @@ const BUILTIN_FOLDERS = [
     // ── AUTH GUARD ──
     onAuthStateChanged(auth, async (user) => {
       if (!user) {
+        window.location.href = "index.html";
+        return;
+      }
+      const isUnverifiedPasswordAccount = user.providerData.some((profile) => profile.providerId === "password")
+        && !user.emailVerified;
+      if (isUnverifiedPasswordAccount) {
+        await signOut(auth);
         window.location.href = "index.html";
         return;
       }
@@ -90,7 +83,7 @@ const BUILTIN_FOLDERS = [
     document.getElementById("cancelBtn").addEventListener("click", () => {
       document.getElementById("composer").classList.remove("open");
       document.getElementById("noteTitle").value = "";
-      quill.root.innerHTML = "";
+      setNoteBodyContent("");
     });
 
     // FAVORITE FILTER //
@@ -130,6 +123,18 @@ const BUILTIN_FOLDERS = [
       loadNotes();
     });
 
+    document.getElementById("sharedNotesTab").addEventListener("click", () => {
+      currentFilter = "shared";
+      selectedFolderFilter = null;
+
+      document.querySelectorAll(".nav-tab")
+        .forEach(el => el.classList.remove("active"));
+
+      setActiveView("notes");
+      updateFilterTabs();
+      loadNotes();
+    });
+
     document.getElementById("searchInput").addEventListener("input", (event) => {
       searchTerm = event.target.value.trim().toLowerCase();
       loadNotes();
@@ -149,6 +154,12 @@ const BUILTIN_FOLDERS = [
     const supportSubmit = document.getElementById("supportSubmit");
     const profileMenuBtn = document.getElementById("profileMenuBtn");
     const profilePanel = document.getElementById("profilePanel");
+    const shareOverlay = document.getElementById("shareOverlay");
+    const shareDialog = document.getElementById("shareDialog");
+    const shareForm = document.getElementById("shareForm");
+    const shareEmail = document.getElementById("shareEmail");
+    const shareSubmit = document.getElementById("shareSubmit");
+    const shareList = document.getElementById("shareList");
 
     function setProfilePanel(isOpen) {
       profilePanel.classList.toggle("open", isOpen);
@@ -162,6 +173,60 @@ const BUILTIN_FOLDERS = [
       supportFab.setAttribute("aria-expanded", String(isOpen));
     }
 
+    function setShareDialog(isOpen, note = null) {
+      activeSharingNote = isOpen ? note : null;
+      shareOverlay.toggleAttribute("hidden", !isOpen);
+      shareDialog.setAttribute("aria-hidden", String(!isOpen));
+      document.body.style.overflow = isOpen ? "hidden" : "";
+      if (isOpen) {
+        shareEmail.value = "";
+        renderShareList();
+        shareEmail.focus();
+      }
+    }
+
+    function renderShareList() {
+      const recipients = activeSharingNote?.data.sharedWith || [];
+      if (!recipients.length) {
+        shareList.innerHTML = `<div class="share-empty">Only you can access this note.</div>`;
+        return;
+      }
+
+      shareList.innerHTML = recipients.map((email) => `
+        <div class="share-person">
+          <span>${escHtml(email)}</span>
+          <button class="share-remove" type="button" data-email="${escHtml(email)}">Remove</button>
+        </div>
+      `).join("");
+
+      shareList.querySelectorAll(".share-remove").forEach((button) => {
+        button.addEventListener("click", async () => {
+          const saved = await saveSharedWith(recipients.filter((email) => email !== button.dataset.email));
+          if (saved) showToast("Sharing access removed.");
+        });
+      });
+    }
+
+    async function saveSharedWith(recipients) {
+      if (!activeSharingNote) return false;
+      shareSubmit.disabled = true;
+      try {
+        await updateDoc(doc(db, "notes", activeSharingNote.id), {
+          sharedWith: recipients,
+        });
+        activeSharingNote.data.sharedWith = recipients;
+        renderShareList();
+        loadNotes();
+        return true;
+      } catch (err) {
+        console.error(err);
+        showToast("Could not update sharing: " + (err.message || "unknown error"), true);
+        return false;
+      } finally {
+        shareSubmit.disabled = false;
+      }
+    }
+
     profileMenuBtn.addEventListener("click", () => {
       setProfilePanel(!profilePanel.classList.contains("open"));
     });
@@ -172,6 +237,39 @@ const BUILTIN_FOLDERS = [
 
     supportClose.addEventListener("click", () => {
       setSupportPanel(false);
+    });
+
+    document.getElementById("shareClose").addEventListener("click", () => setShareDialog(false));
+    shareOverlay.addEventListener("click", (event) => {
+      if (event.target === shareOverlay) {
+        setShareDialog(false);
+      }
+    });
+    shareForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const email = shareEmail.value.trim().toLowerCase();
+      const recipients = activeSharingNote?.data.sharedWith || [];
+      const ownerEmail = (currentUser?.email || "").trim().toLowerCase();
+
+      if (!shareEmail.reportValidity()) return;
+      if (email === ownerEmail) {
+        showToast("You already own this note.", true);
+        return;
+      }
+      if (recipients.includes(email)) {
+        showToast("That person already has access.", true);
+        return;
+      }
+      if (recipients.length >= 25) {
+        showToast("A note can be shared with up to 25 people.", true);
+        return;
+      }
+
+      const saved = await saveSharedWith([...recipients, email]);
+      if (saved) {
+        shareEmail.value = "";
+        showToast("Note shared ✓");
+      }
     });
 
     document.getElementById("openSupportFromSettings").addEventListener("click", () => {
@@ -189,6 +287,9 @@ const BUILTIN_FOLDERS = [
       }
       if (event.key === "Escape" && supportPanel.classList.contains("open")) {
         setSupportPanel(false);
+      }
+      if (event.key === "Escape" && !shareOverlay.hidden) {
+        setShareDialog(false);
       }
       if (event.key === "Escape" && currentView === "folders") {
         closeFolderManager();
@@ -253,8 +354,8 @@ const BUILTIN_FOLDERS = [
     // SAVE AND EDIT NOTE
     document.getElementById("saveBtn").addEventListener("click", async () => {
       const title = document.getElementById("noteTitle").value.trim();
-      const body = quill.root.innerHTML.trim();
-      const formattedBody = body;
+      const body = getNoteBodyText();
+      const formattedBody = getNoteBodyHtml();
 
       const selectedFolder = document.getElementById("noteFolder").value;
       const newFolder = document.getElementById("newFolderInput")?.value.trim();
@@ -270,7 +371,7 @@ const BUILTIN_FOLDERS = [
       const noteAccentColor = folderColor;
 
       if (!title) { showToast("Please add a title!", true); return; }
-      if (!quill.getText().trim()) {
+      if (!body) {
         showToast("Note can't be empty!", true);
         return;
       }
@@ -340,12 +441,13 @@ const BUILTIN_FOLDERS = [
             createdAt: serverTimestamp(),
             isFavorite: false,
             isArchived: false,
+            sharedWith: [],
           });
           showToast("Note saved ✓");
         }
 
         document.getElementById("noteTitle").value = "";
-        quill.root.innerHTML = "";
+        setNoteBodyContent("");
         document.getElementById("composer").classList.remove("open");
 
         document.getElementById("newFolderInput").value = "";
@@ -703,22 +805,48 @@ async function loadFolderManager() {
     grid.innerHTML = '<div class="loading">Loading...</div>';
 
     try {
-      const q = query(
+      const ownedQuery = query(
         collection(db, "notes"),
         where("userId", "==", currentUser.uid),
         orderBy("createdAt", "desc")
       );
-      
-      const snapshot = await getDocs(q);
-      updateCounts(snapshot.docs);
+      const recipientEmail = (currentUser.email || "").trim().toLowerCase();
+      const sharedQuery = recipientEmail
+        ? query(collection(db, "notes"), where("sharedWith", "array-contains", recipientEmail))
+        : null;
+      const ownedSnapshot = await getDocs(ownedQuery);
+      let sharedSnapshot = { docs: [] };
+      let sharedNotesError = null;
 
-      if (snapshot.empty) {
-        renderEmptyState(grid);
+      if (sharedQuery) {
+        try {
+          sharedSnapshot = await getDocs(sharedQuery);
+        } catch (err) {
+          console.warn("Unable to load shared notes:", err);
+          sharedNotesError = err;
+        }
+      }
+
+      updateCounts(ownedSnapshot.docs, sharedSnapshot.docs);
+
+      grid.innerHTML = "";
+      if (currentFilter === "shared" && sharedNotesError) {
+        grid.innerHTML = `
+          <div class="loading">
+            Shared notes are unavailable until the updated Firestore rules are deployed.
+          </div>`;
         return;
       }
 
-      grid.innerHTML = "";
-      let docs = snapshot.docs;
+      let docs = currentFilter === "shared" ? sharedSnapshot.docs : ownedSnapshot.docs;
+
+      if (currentFilter === "shared") {
+        docs = docs.filter((docSnap) => docSnap.data().userId !== currentUser.uid && !docSnap.data().isArchived);
+      } else if (currentFilter === "archived") {
+        docs = docs.filter((docSnap) => docSnap.data().isArchived);
+      } else {
+        docs = docs.filter((docSnap) => !docSnap.data().isArchived);
+      }
 
       if (searchTerm) {
         docs = docs.filter((docSnap) => matchesSearch(docSnap.data(), searchTerm));
@@ -756,31 +884,35 @@ async function loadFolderManager() {
 
       docs.forEach((docSnap, i) => {
         const data = docSnap.data();
+        const isOwner = data.userId === currentUser.uid;
         const date = data.createdAt?.toDate
         ? data.createdAt.toDate().toLocaleDateString("en-US", { month:"short", day:"numeric" })
         : "Just now";
         
         const card = document.createElement("div");
-        card.className = `note-card tag-${data.folder || "other"}`;
+        card.className = `note-card tag-${data.folder || "other"}${data.isFavorite && isOwner ? " is-favorite" : ""}`;
         card.style.setProperty('--folder-color', data.folderColor || '#8FBF9A');
         card.style.setProperty('--note-accent', data.noteAccentColor || data.folderColor || '#8FBF9A');
         card.style.animationDelay = (i * 0.05) + "s";
         card.innerHTML = `
-          <button class="btn-favorite ${data.isFavorite ? "active" : ""}" data-id="${docSnap.id}">★</button>
+          ${isOwner ? `<button class="btn-favorite ${data.isFavorite ? "active" : ""}" data-id="${docSnap.id}">★</button>` : ""}
           <div class="note-meta">
-            <div class="note-folder">${folderLabel(data.folder)}</div>
+            <div class="note-folder">${escHtml(folderLabel(data.folder))}</div>
             <span class="note-date">${date}</span>
           </div>
+          ${isOwner ? "" : `<div class="shared-badge">Shared with you</div>`}
           <div class="note-title">${escHtml(data.title || "Untitled")}</div>
-          <div class="note-preview">${data.text || ""}</div>
+          <div class="note-preview">${escHtml(data.text || "")}</div>
           <div class="note-footer">
           <div class="note-action">
             <button class="btn-pdf" data-title="${escHtml(data.title)}" data-text="${escHtml(data.text)}">📄 PDF</button>
             <button class="btn-txt" data-title="${escHtml(data.title)}" data-text="${escHtml(data.text)}">📝 TXT</button>
             <button class="btn-copy" data-title="${escHtml(data.title)}" data-text="${escHtml(data.text)}">📋 Copy</button>
+            ${isOwner ? `
+            <button class="btn-share" data-id="${docSnap.id}">Share</button>
             <button class="btn-archive" data-id="${docSnap.id}">${data.isArchived ? "Restore" : "Archive 🗂"}</button>
             <button class="btn-edit" data-id="${docSnap.id}">✏️ Edit</button>
-            <button class="btn-delete" data-id="${docSnap.id}">🗑 Delete</button>
+            <button class="btn-delete" data-id="${docSnap.id}">🗑 Delete</button>` : ""}
           </div>
       </div>`;
     grid.appendChild(card);
@@ -814,6 +946,15 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
   });
 });
 // Delete handlers
+  grid.querySelectorAll(".btn-share").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const note = docs.find(d => d.id === btn.dataset.id);
+      if (!note) return;
+      setShareDialog(true, { id: note.id, data: note.data() });
+    });
+  });
+
   grid.querySelectorAll(".btn-delete").forEach(btn => {
     btn.addEventListener("click", async (e) => {
     e.stopPropagation();
@@ -831,7 +972,7 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
           btn.addEventListener("click", async (e) => {
             e.stopPropagation();
             const id = btn.dataset.id;
-            const note = snapshot.docs.find(d => d.id === id);
+            const note = docs.find(d => d.id === id);
             if (!note) return;
 
             const nextValue = !(note.data().isArchived || false);
@@ -853,7 +994,7 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
             e.stopPropagation();
             const id = btn.dataset.id;
 
-            const note = snapshot.docs.find(d => d.id === id);
+            const note = docs.find(d => d.id === id);
             if (!note) return;
 
             const current = note.data().isFavorite || false;
@@ -881,7 +1022,7 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
             e.stopPropagation();
             
             const id = btn.dataset.id;
-            const note = snapshot.docs.find(d => d.id === id);
+            const note = docs.find(d => d.id === id);
             if (!note) return
 
             const data = note.data();
@@ -890,7 +1031,7 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
             const color = document.getElementById("folderColorPicker");
 
             document.getElementById("noteTitle").value = data.title || "";
-            quill.root.innerHTML = data.text || "";
+            setNoteBodyContent(data.formattedText || data.text || "");
 
             const isCustom = !["school","work","personal","other"].includes(data.folder);
 
@@ -959,6 +1100,15 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
         return;
       }
 
+      if (currentFilter === "shared") {
+        grid.innerHTML = `
+          <div class="empty">
+            <div class="empty-title">No notes shared with you</div>
+            <div class="empty-sub">Notes shared with your account email will appear here.</div>
+          </div>`;
+        return;
+      }
+
       grid.innerHTML = `
         <div class="empty">
           <div class="empty-icon">📭</div>
@@ -971,6 +1121,7 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
       document.getElementById("allNotesTab")?.classList.toggle("active", currentFilter === "all");
       document.getElementById("favoritesTab")?.classList.toggle("active", currentFilter === "favorites");
       document.getElementById("archivedTab")?.classList.toggle("active", currentFilter === "archived");
+      document.getElementById("sharedNotesTab")?.classList.toggle("active", currentFilter === "shared");
       updateSectionTitle();
     }
 
@@ -1036,10 +1187,15 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
         return;
       }
 
+      if (currentFilter === "shared") {
+        sectionTitle.textContent = "Shared With Me";
+        return;
+      }
+
       sectionTitle.textContent = "All Notes";
     }
 
-    function updateCounts(docs) {
+    function updateCounts(docs, sharedDocs = []) {
       const activeDocs = docs.filter((docSnap) => !docSnap.data().isArchived);
       const allCount = activeDocs.length;
       const favoritesCount = activeDocs.filter((docSnap) => docSnap.data().isFavorite).length;
@@ -1048,6 +1204,9 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
       document.getElementById("allCount").textContent = String(allCount);
       document.getElementById("favoritesCount").textContent = String(favoritesCount);
       document.getElementById("archivedCount").textContent = String(archivedCount);
+      document.getElementById("sharedCount").textContent = String(
+        sharedDocs.filter((docSnap) => docSnap.data().userId !== currentUser.uid && !docSnap.data().isArchived).length
+      );
     }
 
     function escHtml(str) {
@@ -1432,13 +1591,19 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
       clearTimeout(toastTimer);
       toastTimer = setTimeout(() => t.className = "toast", 3000);
     }
+
+    window.format = function(command, value = null) {
+      document.execCommand(command, false, value);
+    };
   });
 
   // ── EXPORT TO PDF ──
   function exportToPDF(title, text) {
     const w = window.open("", "_blank");
     if (!w) { alert("Please allow popups for this site to export PDF."); return; }
-      w.document.write(`<!DOCTYPE html><html><head><title>${title}</title>
+    const safeTitle = escapeExportHtml(title);
+    const safeText = escapeExportHtml(text);
+    w.document.write(`<!DOCTYPE html><html><head><title>${safeTitle}</title>
       <style>
         body { font-family: Georgia, serif; max-width: 680px; margin: 60px auto; color: #111; line-height: 1.8; }
         h1 { font-size: 2rem; border-bottom: 3px solid #c8f04a; padding-bottom: 12px; margin-bottom: 8px; }
@@ -1446,13 +1611,22 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
         p { font-size: 1rem; white-space: pre-wrap; }
         .footer { margin-top: 60px; font-size: .72rem; color: #bbb; text-align: center; border-top: 1px solid #eee; padding-top: 16px; }
       </style></head><body>
-      <h1>${title}</h1>
+      <h1>${safeTitle}</h1>
       <div class="meta">Exported from NoteIT — ${new Date().toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})}</div>
-      <p>${text}</p>
+      <p>${safeText}</p>
       <div class="footer">NoteIT</div>
     </body></html>`);
-      w.document.close();
+    w.document.close();
     setTimeout(() => { w.print(); }, 500);
+  }
+
+  function escapeExportHtml(value) {
+    return String(value || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
   }
 
   // ── EXPORT TO TXT ──
