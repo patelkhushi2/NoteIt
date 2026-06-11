@@ -1,0 +1,138 @@
+[debug] [2026-06-11T18:35:35.785Z] ----------------------------------------------------------------------
+[debug] [2026-06-11T18:35:35.788Z] Command:       /usr/local/bin/node /usr/local/bin/firebase deploy --only firestore:rules --project noteit-8b57d --non-interactive
+[debug] [2026-06-11T18:35:35.789Z] CLI Version:   15.11.0
+[debug] [2026-06-11T18:35:35.789Z] Platform:      darwin
+[debug] [2026-06-11T18:35:35.789Z] Node Version:  v22.13.0
+[debug] [2026-06-11T18:35:35.790Z] Time:          Thu Jun 11 2026 14:35:35 GMT-0400 (Eastern Daylight Time)
+[debug] [2026-06-11T18:35:35.790Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-06-11T18:35:35.792Z] >>> [apiv2][query] GET https://firebase-public.firebaseio.com/cli.json [none]
+[debug] [2026-06-11T18:35:37.834Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-06-11T18:35:37.835Z] > authorizing via signed-in user (kpatel21.wtsdnj@gmail.com)
+[debug] [2026-06-11T18:35:37.835Z] [iam] checking project noteit-8b57d for permissions ["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]
+[debug] [2026-06-11T18:35:37.836Z] Checked if tokens are valid: false, expires at: 1780867445089
+[debug] [2026-06-11T18:35:37.836Z] Checked if tokens are valid: false, expires at: 1780867445089
+[debug] [2026-06-11T18:35:37.837Z] > refreshing access token with scopes: []
+[debug] [2026-06-11T18:35:37.839Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-06-11T18:35:37.840Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-06-11T18:35:37.844Z] *** [apiv2] error from fetch(https://firebase-public.firebaseio.com/cli.json, {"headers":{},"method":"GET"}): FetchError: request to https://firebase-public.firebaseio.com/cli.json failed, reason: getaddrinfo ENOTFOUND firebase-public.firebaseio.com
+[warn] ⚠  Unable to fetch the CLI MOTD and remote config. This is not a fatal error, but may indicate an issue with your network connection. 
+[debug] [2026-06-11T18:35:37.845Z] Failed to fetch MOTD FirebaseError: Failed to make request to https://firebase-public.firebaseio.com/cli.json
+[debug] [2026-06-11T18:35:37.846Z] *** [apiv2] error from fetch(https://www.googleapis.com/oauth2/v3/token, {"headers":{},"method":"POST","body":{"_overheadLength":545,"_valueLength":212,"_valuesToMeasure":[],"writable":false,"readable":true,"dataSize":0,"maxDataSize":2097152,"pauseStreams":true,"_released":true,"_streams":[],"_currentStream":null,"_insideLoop":false,"_pendingNext":false,"_boundary":"--------------------------f961e41060ec69cd45947df9","_events":{},"_eventsCount":1}}): FetchError: request to https://www.googleapis.com/oauth2/v3/token failed, reason: getaddrinfo ENOTFOUND www.googleapis.com
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-06-11T18:35:37.847Z] [iam] error while checking permissions, command may fail: Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[info] 
+[info] === Deploying to 'noteit-8b57d'...
+[info] 
+[info] i  deploying firestore 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[debug] [2026-06-11T18:35:37.852Z] Checked if tokens are valid: false, expires at: 1780867445089
+[debug] [2026-06-11T18:35:37.852Z] Checked if tokens are valid: false, expires at: 1780867445089
+[debug] [2026-06-11T18:35:37.852Z] > refreshing access token with scopes: []
+[debug] [2026-06-11T18:35:37.853Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-06-11T18:35:37.853Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-06-11T18:35:37.863Z] *** [apiv2] error from fetch(https://www.googleapis.com/oauth2/v3/token, {"headers":{},"method":"POST","body":{"_overheadLength":545,"_valueLength":212,"_valuesToMeasure":[],"writable":false,"readable":true,"dataSize":0,"maxDataSize":2097152,"pauseStreams":true,"_released":true,"_streams":[],"_currentStream":null,"_insideLoop":false,"_pendingNext":false,"_boundary":"--------------------------1ca5d0127b9f0bbf120f18d2","_events":{},"_eventsCount":1}}): FetchError: request to https://www.googleapis.com/oauth2/v3/token failed, reason: getaddrinfo ENOTFOUND www.googleapis.com
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[info] i  cloud.firestore: checking firestore.rules for compilation errors... 
+[debug] [2026-06-11T18:35:37.864Z] Checked if tokens are valid: false, expires at: 1780867445089
+[debug] [2026-06-11T18:35:37.865Z] Checked if tokens are valid: false, expires at: 1780867445089
+[debug] [2026-06-11T18:35:37.865Z] > refreshing access token with scopes: []
+[debug] [2026-06-11T18:35:37.865Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-06-11T18:35:37.865Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-06-11T18:35:37.870Z] *** [apiv2] error from fetch(https://www.googleapis.com/oauth2/v3/token, {"headers":{},"method":"POST","body":{"_overheadLength":545,"_valueLength":212,"_valuesToMeasure":[],"writable":false,"readable":true,"dataSize":0,"maxDataSize":2097152,"pauseStreams":true,"_released":true,"_streams":[],"_currentStream":null,"_insideLoop":false,"_pendingNext":false,"_boundary":"--------------------------111ac279b1d14a1145a4f68e","_events":{},"_eventsCount":1}}): FetchError: request to https://www.googleapis.com/oauth2/v3/token failed, reason: getaddrinfo ENOTFOUND www.googleapis.com
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] 
+[error] Error: Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-06-11T18:35:38.149Z] Error: EPERM: operation not permitted, open '/Users/khushi/.config/configstore/firebase-tools.json.427806374'
+    at Object.openSync (node:fs:562:18)
+    at Function.writeFileSync [as sync] (/usr/local/lib/node_modules/firebase-tools/node_modules/write-file-atomic/index.js:205:13)
+    at set all (/usr/local/lib/node_modules/firebase-tools/node_modules/configstore/index.js:61:20)
+    at Configstore.delete (/usr/local/lib/node_modules/firebase-tools/node_modules/configstore/index.js:101:12)
+    at process.<anonymous> (/usr/local/lib/node_modules/firebase-tools/lib/bin/cli.js:65:45)
+    at process.emit (node:events:536:35)
+    at process.exit (node:internal/process/per_thread:182:15)
+    at Timeout._onTimeout (/usr/local/lib/node_modules/firebase-tools/lib/errorOut.js:20:17)
+    at listOnTimeout (node:internal/timers:594:17)
+    at process.processTimers (node:internal/timers:529:7)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2026-06-11T18:36:13.425Z] ----------------------------------------------------------------------
+[debug] [2026-06-11T18:36:13.429Z] Command:       /usr/local/bin/node /usr/local/bin/firebase deploy --only firestore:rules --project noteit-8b57d --non-interactive
+[debug] [2026-06-11T18:36:13.430Z] CLI Version:   15.11.0
+[debug] [2026-06-11T18:36:13.430Z] Platform:      darwin
+[debug] [2026-06-11T18:36:13.430Z] Node Version:  v22.13.0
+[debug] [2026-06-11T18:36:13.430Z] Time:          Thu Jun 11 2026 14:36:13 GMT-0400 (Eastern Daylight Time)
+[debug] [2026-06-11T18:36:13.430Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-06-11T18:36:13.432Z] >>> [apiv2][query] GET https://firebase-public.firebaseio.com/cli.json [none]
+[debug] [2026-06-11T18:36:14.547Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-06-11T18:36:14.548Z] > authorizing via signed-in user (kpatel21.wtsdnj@gmail.com)
+[debug] [2026-06-11T18:36:14.548Z] [iam] checking project noteit-8b57d for permissions ["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]
+[debug] [2026-06-11T18:36:14.549Z] Checked if tokens are valid: false, expires at: 1780867445089
+[debug] [2026-06-11T18:36:14.549Z] Checked if tokens are valid: false, expires at: 1780867445089
+[debug] [2026-06-11T18:36:14.549Z] > refreshing access token with scopes: []
+[debug] [2026-06-11T18:36:14.551Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-06-11T18:36:14.551Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-06-11T18:36:14.704Z] <<< [apiv2][status] GET https://firebase-public.firebaseio.com/cli.json 200
+[debug] [2026-06-11T18:36:14.704Z] <<< [apiv2][body] GET https://firebase-public.firebaseio.com/cli.json {"cloudBuildErrorAfter":1594252800000,"cloudBuildWarnAfter":1590019200000,"defaultNode10After":1594252800000,"minVersion":"3.0.5","node8DeploysDisabledAfter":1613390400000,"node8RuntimeDisabledAfter":1615809600000,"node8WarnAfter":1600128000000}
+[debug] [2026-06-11T18:36:14.736Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2026-06-11T18:36:14.736Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-06-11T18:36:14.777Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/noteit-8b57d:testIamPermissions [none]
+[debug] [2026-06-11T18:36:14.777Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/noteit-8b57d:testIamPermissions  x-goog-user-project=noteit-8b57d
+[debug] [2026-06-11T18:36:14.777Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/noteit-8b57d:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[debug] [2026-06-11T18:36:14.932Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/noteit-8b57d:testIamPermissions 200
+[debug] [2026-06-11T18:36:14.933Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/noteit-8b57d:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[info] 
+[info] === Deploying to 'noteit-8b57d'...
+[info] 
+[info] i  deploying firestore 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[debug] [2026-06-11T18:36:14.938Z] Checked if tokens are valid: true, expires at: 1781206573736
+[debug] [2026-06-11T18:36:14.938Z] Checked if tokens are valid: true, expires at: 1781206573736
+[debug] [2026-06-11T18:36:14.938Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/noteit-8b57d/databases/(default) [none]
+[debug] [2026-06-11T18:36:15.269Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/noteit-8b57d/databases/(default) 200
+[debug] [2026-06-11T18:36:15.269Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/noteit-8b57d/databases/(default) {"name":"projects/noteit-8b57d/databases/(default)","uid":"4087072d-fabc-4eb8-b8f3-b29f8fa6fc12","createTime":"2026-03-04T17:22:51.249325Z","updateTime":"2026-03-04T17:22:51.249325Z","locationId":"us-east1","type":"FIRESTORE_NATIVE","concurrencyMode":"PESSIMISTIC","versionRetentionPeriod":"3600s","earliestVersionTime":"2026-06-11T17:36:15.237347Z","appEngineIntegrationMode":"DISABLED","keyPrefix":"p","pointInTimeRecoveryEnablement":"POINT_IN_TIME_RECOVERY_DISABLED","deleteProtectionState":"DELETE_PROTECTION_DISABLED","databaseEdition":"STANDARD","freeTier":true,"realtimeUpdatesMode":"REALTIME_UPDATES_MODE_ENABLED","etag":"IPvC8pTq/5QDMLKo273hhpMD"}
+[info] i  cloud.firestore: checking firestore.rules for compilation errors... 
+[debug] [2026-06-11T18:36:15.271Z] Checked if tokens are valid: true, expires at: 1781206573736
+[debug] [2026-06-11T18:36:15.271Z] Checked if tokens are valid: true, expires at: 1781206573736
+[debug] [2026-06-11T18:36:15.272Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/noteit-8b57d:test [none]
+[debug] [2026-06-11T18:36:15.272Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/noteit-8b57d:test [omitted]
+[debug] [2026-06-11T18:36:15.566Z] <<< [apiv2][status] POST https://firebaserules.googleapis.com/v1/projects/noteit-8b57d:test 200
+[debug] [2026-06-11T18:36:15.566Z] <<< [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/noteit-8b57d:test {}
+[info] ✔  cloud.firestore: rules file firestore.rules compiled successfully 
+[debug] [2026-06-11T18:36:15.568Z] Checked if tokens are valid: true, expires at: 1781206573736
+[debug] [2026-06-11T18:36:15.569Z] Checked if tokens are valid: true, expires at: 1781206573736
+[debug] [2026-06-11T18:36:15.570Z] >>> [apiv2][query] GET https://firebaserules.googleapis.com/v1/projects/noteit-8b57d/releases pageSize=10&pageToken=
+[debug] [2026-06-11T18:36:15.747Z] <<< [apiv2][status] GET https://firebaserules.googleapis.com/v1/projects/noteit-8b57d/releases 200
+[debug] [2026-06-11T18:36:15.748Z] <<< [apiv2][body] GET https://firebaserules.googleapis.com/v1/projects/noteit-8b57d/releases {"releases":[{"name":"projects/noteit-8b57d/releases/cloud.firestore","rulesetName":"projects/noteit-8b57d/rulesets/783d1157-6196-42c4-9ca4-a34b821bfeb9","createTime":"2026-03-04T17:22:55.543530Z","updateTime":"2026-06-11T02:06:39.476749Z"}]}
+[debug] [2026-06-11T18:36:15.748Z] Checked if tokens are valid: true, expires at: 1781206573736
+[debug] [2026-06-11T18:36:15.748Z] Checked if tokens are valid: true, expires at: 1781206573736
+[debug] [2026-06-11T18:36:15.748Z] >>> [apiv2][query] GET https://firebaserules.googleapis.com/v1/projects/noteit-8b57d/rulesets/783d1157-6196-42c4-9ca4-a34b821bfeb9 [none]
+[debug] [2026-06-11T18:36:15.926Z] <<< [apiv2][status] GET https://firebaserules.googleapis.com/v1/projects/noteit-8b57d/rulesets/783d1157-6196-42c4-9ca4-a34b821bfeb9 200
+[debug] [2026-06-11T18:36:15.926Z] <<< [apiv2][body] GET https://firebaserules.googleapis.com/v1/projects/noteit-8b57d/rulesets/783d1157-6196-42c4-9ca4-a34b821bfeb9 [omitted]
+[info] i  firestore: uploading rules firestore.rules... 
+[debug] [2026-06-11T18:36:15.929Z] Checked if tokens are valid: true, expires at: 1781206573736
+[debug] [2026-06-11T18:36:15.929Z] Checked if tokens are valid: true, expires at: 1781206573736
+[debug] [2026-06-11T18:36:15.929Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/noteit-8b57d/rulesets [none]
+[debug] [2026-06-11T18:36:15.929Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/noteit-8b57d/rulesets [omitted]
+[debug] [2026-06-11T18:36:16.233Z] <<< [apiv2][status] POST https://firebaserules.googleapis.com/v1/projects/noteit-8b57d/rulesets 200
+[debug] [2026-06-11T18:36:16.233Z] <<< [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/noteit-8b57d/rulesets {"name":"projects/noteit-8b57d/rulesets/36dee710-107d-4534-817c-1f1101e654d3","source":{"files":[{"content":"rules_version = '2';\n\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    function validSharedRecipients(data) {\n      return !('sharedWith' in data)\n        || (data.sharedWith is list && data.sharedWith.size() <= 25);\n    }\n\n    match /notes/{noteId} {\n      allow create: if request.auth != null\n        && request.resource.data.userId == request.auth.uid\n        && validSharedRecipients(request.resource.data);\n      allow read: if request.auth != null\n        && (resource.data.userId == request.auth.uid\n          || (request.auth.token.email_verified == true\n            && resource.data.sharedWith is list\n            && request.auth.token.email in resource.data.sharedWith));\n      allow delete: if request.auth != null\n        && resource.data.userId == request.auth.uid;\n      allow update: if request.auth != null\n        && resource.data.userId == request.auth.uid\n        && request.resource.data.userId == request.auth.uid\n        && validSharedRecipients(request.resource.data);\n    }\n\n    match /folders/{folderId} {\n      allow create: if request.auth != null\n        && request.resource.data.userId == request.auth.uid;\n      allow read, delete: if request.auth != null\n        && resource.data.userId == request.auth.uid;\n      allow update: if request.auth != null\n        && resource.data.userId == request.auth.uid\n        && request.resource.data.userId == request.auth.uid;\n    }\n\n    match /supportMessages/{messageId} {\n      allow create: if request.auth != null\n        && request.resource.data.userId == request.auth.uid;\n      allow read, update, delete: if false;\n    }\n  }\n}\n","name":"firestore.rules"}]},"createTime":"2026-06-11T18:36:16.183135Z","metadata":{"services":["cloud.firestore"]}}
+[debug] [2026-06-11T18:36:16.233Z] [rules] created ruleset projects/noteit-8b57d/rulesets/36dee710-107d-4534-817c-1f1101e654d3
+[debug] [2026-06-11T18:36:16.233Z] [rules] releasing cloud.firestore/(default) with ruleset projects/noteit-8b57d/rulesets/36dee710-107d-4534-817c-1f1101e654d3
+[debug] [2026-06-11T18:36:16.234Z] Checked if tokens are valid: true, expires at: 1781206573736
+[debug] [2026-06-11T18:36:16.234Z] Checked if tokens are valid: true, expires at: 1781206573736
+[debug] [2026-06-11T18:36:16.235Z] >>> [apiv2][query] PATCH https://firebaserules.googleapis.com/v1/projects/noteit-8b57d/releases/cloud.firestore/(default) [none]
+[debug] [2026-06-11T18:36:16.235Z] >>> [apiv2][body] PATCH https://firebaserules.googleapis.com/v1/projects/noteit-8b57d/releases/cloud.firestore/(default) {"release":{"name":"projects/noteit-8b57d/releases/cloud.firestore/(default)","rulesetName":"projects/noteit-8b57d/rulesets/36dee710-107d-4534-817c-1f1101e654d3"}}
+[debug] [2026-06-11T18:36:16.592Z] <<< [apiv2][status] PATCH https://firebaserules.googleapis.com/v1/projects/noteit-8b57d/releases/cloud.firestore/(default) 200
