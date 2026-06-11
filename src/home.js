@@ -885,12 +885,19 @@ async function loadFolderManager() {
       docs.forEach((docSnap, i) => {
         const data = docSnap.data();
         const isOwner = data.userId === currentUser.uid;
+        const previewText = richTextToPlainText(data.text || data.formattedText || "");
         const date = data.createdAt?.toDate
         ? data.createdAt.toDate().toLocaleDateString("en-US", { month:"short", day:"numeric" })
         : "Just now";
         
         const card = document.createElement("div");
         card.className = `note-card tag-${data.folder || "other"}${data.isFavorite && isOwner ? " is-favorite" : ""}`;
+        card.dataset.id = docSnap.id;
+        if (isOwner) {
+          card.classList.add("is-editable");
+          card.tabIndex = 0;
+          card.setAttribute("aria-label", `Edit ${data.title || "untitled note"}`);
+        }
         card.style.setProperty('--folder-color', data.folderColor || '#8FBF9A');
         card.style.setProperty('--note-accent', data.noteAccentColor || data.folderColor || '#8FBF9A');
         card.style.animationDelay = (i * 0.05) + "s";
@@ -902,7 +909,7 @@ async function loadFolderManager() {
           </div>
           ${isOwner ? "" : `<div class="shared-badge">Shared with you</div>`}
           <div class="note-title">${escHtml(data.title || "Untitled")}</div>
-          <div class="note-preview">${escHtml(data.text || "")}</div>
+          <div class="note-preview">${escHtml(previewText)}</div>
           <div class="note-footer">
           <div class="note-action">
             <button class="btn-pdf" data-title="${escHtml(data.title)}" data-text="${escHtml(data.text)}">📄 PDF</button>
@@ -1018,46 +1025,63 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
 
         // EDIT HANDLERS
         grid.querySelectorAll(".btn-edit").forEach(btn => {
-          btn.addEventListener("click", async (e) => {
+          btn.addEventListener("click", (e) => {
             e.stopPropagation();
-            
-            const id = btn.dataset.id;
-            const note = docs.find(d => d.id === id);
-            if (!note) return
+            openNoteForEditing(docs.find(note => note.id === btn.dataset.id));
+          });
+        });
 
-            const data = note.data();
+        grid.querySelectorAll(".note-card.is-editable").forEach(card => {
+          const openCard = () => {
+            openNoteForEditing(docs.find(note => note.id === card.dataset.id));
+          };
 
-            const input = document.getElementById("newFolderInput");
-            const color = document.getElementById("folderColorPicker");
-
-            document.getElementById("noteTitle").value = data.title || "";
-            setNoteBodyContent(data.formattedText || data.text || "");
-
-            const isCustom = !["school","work","personal","other"].includes(data.folder);
-
-            if (isCustom) {
-              document.getElementById("noteFolder").value = "other";
-
-              input.style.display = "block";
-              color.style.display = "block";
-
-              input.value = data.folder;
-              color.value = data.folderColor || "#8FBF9A";
-            } else {
-              input.style.display = "none";
-              color.style.display = "none";
+          card.addEventListener("click", openCard);
+          card.addEventListener("keydown", (event) => {
+            if (event.target === card && (event.key === "Enter" || event.key === " ")) {
+              event.preventDefault();
+              openCard();
             }
-
-            setActiveView("notes");
-            document.getElementById("composer").classList.add("open");
-            syncPrimaryActions();
-            editingNoteId = id;
           });
         });
       } catch (err) {
         console.error(err);
         grid.innerHTML = `<div class="loading">Error loading notes: ${err.message}</div>`;
       }
+    }
+
+    function openNoteForEditing(note) {
+      if (!note || note.data().userId !== currentUser.uid) return;
+
+      const data = note.data();
+      const folderSelect = document.getElementById("noteFolder");
+      const input = document.getElementById("newFolderInput");
+      const color = document.getElementById("folderColorPicker");
+      const accent = document.getElementById("noteAccentPicker");
+      const isCustom = !["school", "work", "personal"].includes(data.folder);
+
+      document.getElementById("noteTitle").value = data.title || "";
+      setNoteBodyContent(data.formattedText || data.text || "");
+      accent.value = data.noteAccentColor || data.folderColor || getCurrentAccentColor();
+
+      if (isCustom) {
+        folderSelect.value = "other";
+        input.style.display = "block";
+        color.style.display = "block";
+        input.value = data.folder || "";
+        color.value = data.folderColor || "#8FBF9A";
+      } else {
+        folderSelect.value = data.folder;
+        input.style.display = "none";
+        color.style.display = "none";
+        input.value = "";
+      }
+
+      setActiveView("notes");
+      document.getElementById("composer").classList.add("open");
+      syncPrimaryActions();
+      editingNoteId = note.id;
+      document.getElementById("noteTitle").focus();
     }
 
     function folderLabel(f) {
@@ -1516,6 +1540,21 @@ grid.querySelectorAll(".btn-copy").forEach(btn => {
 
     function normalizePlainText(text) {
       return text.replace(/\u00a0/g, " ").replace(/\u200b/g, "").replace(/\n{3,}/g, "\n\n").trim();
+    }
+
+    function richTextToPlainText(content) {
+      const value = String(content || "");
+      if (!looksLikeHtml(value)) {
+        return normalizePlainText(value);
+      }
+
+      const container = document.createElement("div");
+      container.innerHTML = sanitizeRichText(value);
+      container.querySelectorAll("br").forEach((lineBreak) => {
+        lineBreak.replaceWith(document.createTextNode("\n"));
+      });
+
+      return normalizePlainText(container.textContent || "");
     }
 
     async function findExistingCustomFolder(folderName) {
